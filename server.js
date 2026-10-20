@@ -152,6 +152,22 @@ app.post('/api/analyze-image', upload.single('label_image'), async (req, res) =>
       console.warn('High-contrast OCR pass non-fatal warning:', passErr);
     }
 
+    // 4. Red-channel pass (turns blue/cyan ink on white packaging deep black to pierce glare)
+    try {
+      const redBuf = await sharp(req.file.buffer)
+        .rotate(best.angle)
+        .extractChannel('red')
+        .resize({ width: 2200 })
+        .normalize()
+        .toBuffer();
+      const redRet = await worker.recognize(redBuf);
+      if (redRet.data && redRet.data.text) {
+        best.text = best.text + '\n' + redRet.data.text;
+      }
+    } catch (redErr) {
+      console.warn('Red-channel OCR pass non-fatal warning:', redErr);
+    }
+
     await worker.terminate();
 
     console.log(`Selected orientation: ${best.angle}° with keyword score: ${best.score}`);
