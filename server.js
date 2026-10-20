@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import sharp from 'sharp';
 import { createWorker } from 'tesseract.js';
+import { GoogleGenAI, Type } from '@google/genai';
 
 import { parseNutritionText } from './engine/parser.js';
 import { evaluateFoodProduct } from './engine/rules-engine.js';
@@ -88,15 +89,106 @@ app.post('/api/analyze-text', (req, res) => {
   }
 });
 
-// 4. Optical Character Recognition (OCR) on Image with Multi-Angle Auto-Orientation
+// 4. Optical Character Recognition (OCR) / Vision on Image
 app.post('/api/analyze-image', upload.single('label_image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'No image file uploaded' });
     }
 
-    console.log(`Processing OCR for file: ${req.file.originalname} (${req.file.size} bytes)`);
+    const requestedEngine = (req.body.engine || 'tesseract').toLowerCase();
+    console.log(`Processing image: ${req.file.originalname} (${req.file.size} bytes), Engine: ${requestedEngine}`);
 
+    // --- ENGINE 1: Google Gemini Flash Vision ---
+    if (requestedEngine === 'gemini') {
+      const apiKey = req.body.gemini_api_key || process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(400).json({
+          success: false,
+          error: 'Gemini API key is required when using Gemini Vision. Please enter your API key in the UI field, set GEMINI_API_KEY env variable, or turn off the toggle to use local offline OCR.'
+        });
+      }
+
+      console.log('Invoking Google Gemini Flash Vision (@google/genai)...');
+      const ai = new GoogleGenAI({ apiKey });
+
+      const mimeType = req.file.mimetype || 'image/jpeg';
+      const prompt = `You are an expert food safety, nutrition, and regulatory compliance analyst specializing in FSSAI (Food Safety and Standards Authority of India) food labeling regulations.
+Analyze this food product packaging photograph and extract the nutritional values and complete ingredients list.
+
+CRITICAL INSTRUCTIONS:
+1. Standardize all nutritional values to the "per 100g" (or "per 100ml" for liquids/dairy/beverages) basis as required by FSSAI.
+2. If values on the packaging are presented per serving (e.g. per 30g), mathematically convert them to per 100g or per 100ml. If serving size is not indicated, state the basis in serving_size.
+3. If energy is not explicitly printed or is 0, estimate it using the 4-4-9 Atwater factor: (Protein * 4) + (Carbohydrate * 4) + (Fat * 9).
+4. If only salt is reported, convert to sodium: sodium_mg = salt_g * 400.
+5. Extract the entire ingredients text verbatim from the package if present.
+6. Provide numeric numbers for all nutrient fields (use 0 or null if not mentioned).`;
+
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [
+            {
+              inlineData: {
+                data: req.file.buffer.toString('base64'),
+                mimeType: mimeType
+              }
+            },
+            prompt
+          ],
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                product_name: { type: Type.STRING, description: 'Product title or trade name from package' },
+                brand: { type: Type.STRING, description: 'Brand or manufacturer name' },
+                serving_size: { type: Type.STRING, description: 'Serving basis, e.g. "per 100g", "per 100ml", "per 70g pack"' },
+                energy_kcal: { type: Type.NUMBER, description: 'Energy in kcal per 100g or per 100ml' },
+                total_fat_g: { type: Type.NUMBER, description: 'Total fat in grams per 100g or per 100ml' },
+                saturated_fat_g: { type: Type.NUMBER, description: 'Saturated fat in grams per 100g or per 100ml' },
+                trans_fat_g: { type: Type.NUMBER, description: 'Trans fat in grams per 100g or per 100ml' },
+                carbohydrate_g: { type: Type.NUMBER, description: 'Total carbohydrates in grams per 100g or per 100ml' },
+                total_sugars_g: { type: Type.NUMBER, description: 'Total sugars in grams per 100g or per 100ml' },
+                added_sugars_g: { type: Type.NUMBER, description: 'Added sugars in grams per 100g or per 100ml' },
+                dietary_fibre_g: { type: Type.NUMBER, description: 'Dietary fibre in grams per 100g or per 100ml' },
+                protein_g: { type: Type.NUMBER, description: 'Protein in grams per 100g or per 100ml' },
+                sodium_mg: { type: Type.NUMBER, description: 'Sodium in milligrams per 100g or per 100ml' },
+                ingredients_text: { type: Type.STRING, description: 'Complete ingredient list as printed on packaging' }
+              }
+            }
+          }
+        });
+
+        const extracted = JSON.parse(response.text);
+
+        // Atwater energy estimation fallback if zero or missing
+        if ((!extracted.energy_kcal || extracted.energy_kcal === 0) && (extracted.protein_g || extracted.carbohydrate_g || extracted.total_fat_g)) {
+          extracted.energy_kcal = Math.round((extracted.protein_g || 0) * 4 + (extracted.carbohydrate_g || 0) * 4 + (extracted.total_fat_g || 0) * 9);
+        }
+
+        const evaluation = evaluateFoodProduct(extracted);
+
+        return res.json({
+          success: true,
+          engine_used: 'gemini',
+          model: 'gemini-2.5-flash',
+          product_name: extracted.product_name || req.file.originalname.replace(/\.[^/.]+$/, ''),
+          brand: extracted.brand || 'Detected Brand',
+          parsed_nutrients: extracted,
+          raw_text: response.text,
+          evaluation
+        });
+      } catch (geminiErr) {
+        console.error('Gemini Vision processing error:', geminiErr);
+        return res.status(500).json({
+          success: false,
+          error: `Gemini Vision API error: ${geminiErr.message}. You can disable the Gemini toggle to use local offline OCR.`
+        });
+      }
+    }
+
+    // --- ENGINE 2: Local Offline Sharp + Tesseract OCR Pipeline (Toggle OFF) ---
     const metadata = await sharp(req.file.buffer).metadata();
     const targetWidth = Math.max(1600, Math.min(2600, (metadata.width || 800) * 2.5));
 
@@ -178,6 +270,7 @@ app.post('/api/analyze-image', upload.single('label_image'), async (req, res) =>
 
     res.json({
       success: true,
+      engine_used: 'tesseract',
       raw_ocr_text: best.text,
       orientation_angle: best.angle,
       confidence: best.confidence,

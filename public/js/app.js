@@ -155,6 +155,72 @@ function setupEventListeners() {
     }
   });
 
+  // Vision Engine Toggle & Key Storage
+  const geminiToggle = document.getElementById('gemini-toggle');
+  const engineBadge = document.getElementById('engine-badge');
+  const engineDesc = document.getElementById('engine-desc');
+  const dropzoneHint = document.getElementById('dropzone-hint');
+  const keyContainer = document.getElementById('gemini-key-container');
+  const keyInput = document.getElementById('gemini-api-key-input');
+  const btnSaveKey = document.getElementById('btn-save-gemini-key');
+
+  // Load saved preferences
+  const savedEngine = localStorage.getItem('label_lens_gemini_enabled');
+  const savedKey = localStorage.getItem('label_lens_gemini_key');
+  if (savedKey && keyInput) {
+    keyInput.value = savedKey;
+  }
+
+  function updateToggleUI(isGemini) {
+    if (isGemini) {
+      if (engineBadge) {
+        engineBadge.textContent = '⚡ GEMINI FLASH AI (Active)';
+        engineBadge.style.background = '#e0e7ff';
+        engineBadge.style.color = '#4338ca';
+        engineBadge.style.border = '1px solid #c7d2fe';
+      }
+      if (engineDesc) {
+        engineDesc.textContent = 'Multimodal AI vision enabled: High-accuracy extraction across curved, glossy packaging & micro-fonts.';
+      }
+      if (dropzoneHint) {
+        dropzoneHint.textContent = 'Multimodal AI Vision with Google Gemini Flash — high-precision extraction for curved/glare labels';
+      }
+      if (keyContainer) keyContainer.style.display = 'flex';
+    } else {
+      if (engineBadge) {
+        engineBadge.textContent = 'OFFLINE (Tesseract.js)';
+        engineBadge.style.background = '#f1f5f9';
+        engineBadge.style.color = '#475569';
+        engineBadge.style.border = '1px solid #cbd5e1';
+      }
+      if (engineDesc) {
+        engineDesc.textContent = 'Toggle OFF for 100% offline local OCR (no cloud, private). Toggle ON for multimodal AI (best for curved packaging, glare, & fine fonts).';
+      }
+      if (dropzoneHint) {
+        dropzoneHint.textContent = 'Processed locally using Sharp & Tesseract.js (no cloud upload, 100% private)';
+      }
+      if (keyContainer) keyContainer.style.display = 'none';
+    }
+  }
+
+  if (geminiToggle) {
+    geminiToggle.checked = savedEngine === 'true';
+    updateToggleUI(geminiToggle.checked);
+
+    geminiToggle.addEventListener('change', () => {
+      localStorage.setItem('label_lens_gemini_enabled', geminiToggle.checked);
+      updateToggleUI(geminiToggle.checked);
+    });
+  }
+
+  if (btnSaveKey && keyInput) {
+    btnSaveKey.addEventListener('click', () => {
+      const val = keyInput.value.trim();
+      localStorage.setItem('label_lens_gemini_key', val);
+      alert(val ? '✓ Gemini API key saved locally in browser!' : 'Gemini API key cleared.');
+    });
+  }
+
   // Dropzone Image Upload with Animated Multi-Stage Progress Bar
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('image-input');
@@ -193,24 +259,39 @@ function setupEventListeners() {
     statusMsg.style.display = 'none';
     loadingBox.style.display = 'block';
 
+    const isGemini = geminiToggle && geminiToggle.checked;
+    const clientKey = (keyInput && keyInput.value.trim()) || localStorage.getItem('label_lens_gemini_key') || '';
+
     const updateProgress = (pct, stepMsg) => {
       progressBar.style.width = `${pct}%`;
       pctText.textContent = `${pct}%`;
       if (stepMsg) substepText.textContent = stepMsg;
     };
 
-    updateProgress(20, 'Step 1/3: Upscaling resolution & normalising contrast with Sharp...');
-
-    // Timed stages to give realistic visual progression while server processes
-    const timer1 = setTimeout(() => {
-      updateProgress(55, 'Step 2/3: Running Tesseract.js neural OCR text recognition...');
-    }, 600);
-
-    const timer2 = setTimeout(() => {
-      updateProgress(80, 'Step 3/3: Evaluating parsed values against FSSAI draft criteria...');
-    }, 1800);
+    let timer1, timer2;
+    if (isGemini) {
+      updateProgress(25, 'Step 1/3: Connecting to Google Gemini Flash Vision...');
+      timer1 = setTimeout(() => {
+        updateProgress(65, 'Step 2/3: Multimodal AI reading nutrition table & ingredients list...');
+      }, 700);
+      timer2 = setTimeout(() => {
+        updateProgress(88, 'Step 3/3: Evaluating extracted nutrients against draft FSSAI thresholds...');
+      }, 1800);
+    } else {
+      updateProgress(20, 'Step 1/3: Upscaling resolution & normalising contrast with Sharp...');
+      timer1 = setTimeout(() => {
+        updateProgress(55, 'Step 2/3: Running Tesseract.js neural OCR text recognition...');
+      }, 600);
+      timer2 = setTimeout(() => {
+        updateProgress(80, 'Step 3/3: Evaluating parsed values against FSSAI draft criteria...');
+      }, 1800);
+    }
 
     const formData = new FormData();
+    formData.append('engine', isGemini ? 'gemini' : 'tesseract');
+    if (isGemini && clientKey) {
+      formData.append('gemini_api_key', clientKey);
+    }
     formData.append('label_image', file);
 
     try {
@@ -228,13 +309,19 @@ function setupEventListeners() {
         setTimeout(() => {
           loadingBox.style.display = 'none';
           statusMsg.style.display = 'block';
-          statusMsg.innerHTML = `<span style="color: var(--success); font-weight: 600;">✓ Scanned "${file.name}" successfully (OCR Confidence: ${Math.round(data.confidence || 88)}%).</span>`;
+
+          if (data.engine_used === 'gemini') {
+            statusMsg.innerHTML = `<span style="color: var(--primary); font-weight: 600;">⚡ Analyzed "${file.name}" via Google Gemini Flash AI Vision.</span>`;
+          } else {
+            statusMsg.innerHTML = `<span style="color: var(--success); font-weight: 600;">✓ Scanned "${file.name}" locally via Tesseract.js (Confidence: ${Math.round(data.confidence || 88)}%).</span>`;
+          }
 
           const scannedProduct = {
             id: `ocr-${Date.now()}`,
-            name: `Scanned Label (${file.name})`,
-            brand: 'Uploaded Image',
+            name: data.product_name || `Scanned Label (${file.name})`,
+            brand: data.brand || (data.engine_used === 'gemini' ? 'AI Vision' : 'Uploaded Image'),
             category: 'Food Product',
+            engine_used: data.engine_used || (isGemini ? 'gemini' : 'tesseract'),
             nutrients: data.parsed_nutrients,
             evaluation: data.evaluation
           };
@@ -254,7 +341,7 @@ function setupEventListeners() {
       clearTimeout(timer2);
       loadingBox.style.display = 'none';
       statusMsg.style.display = 'block';
-      statusMsg.innerHTML = `<span style="color: var(--danger); font-weight: 600;">OCR processing error: ${err.message}</span>`;
+      statusMsg.innerHTML = `<span style="color: var(--danger); font-weight: 600;">Image analysis error: ${err.message}</span>`;
     }
   }
 
@@ -354,6 +441,25 @@ function displayAnalysisResult(product) {
   document.getElementById('result-product-name').textContent = product.name;
   document.getElementById('result-product-meta').textContent = 
     `${product.brand || 'Brand'} • ${product.category || 'Food Category'} • Serving: ${product.nutrients.serving_size || 'per 100g'}`;
+
+  const resultEngineBadge = document.getElementById('result-engine-badge');
+  if (resultEngineBadge) {
+    if (product.engine_used === 'gemini') {
+      resultEngineBadge.style.display = 'inline-block';
+      resultEngineBadge.textContent = '⚡ Gemini Flash Vision';
+      resultEngineBadge.style.background = '#e0e7ff';
+      resultEngineBadge.style.color = '#4338ca';
+      resultEngineBadge.style.border = '1px solid #c7d2fe';
+    } else if (product.engine_used === 'tesseract') {
+      resultEngineBadge.style.display = 'inline-block';
+      resultEngineBadge.textContent = '🖥️ Offline Local OCR';
+      resultEngineBadge.style.background = '#f1f5f9';
+      resultEngineBadge.style.color = '#475569';
+      resultEngineBadge.style.border = '1px solid #cbd5e1';
+    } else {
+      resultEngineBadge.style.display = 'none';
+    }
+  }
 
   const ev = product.evaluation;
   const nut = product.nutrients || {};
