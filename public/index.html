@@ -92,11 +92,11 @@
           </div>
 
           <div class="upload-dropzone" id="dropzone">
-            <input type="file" id="image-input" accept="image/*">
+            <input type="file" id="image-input" accept="image/*" multiple>
             <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📸</div>
-            <p style="font-weight: 600; color: var(--neutral-900);">Click or drag & drop a photo of a nutrition table</p>
+            <p style="font-weight: 600; color: var(--neutral-900);">Click or drag & drop photo(s) of packaging</p>
             <p id="dropzone-hint" style="font-size: 0.82rem; color: var(--neutral-600); margin-top: 0.25rem;">
-              Processed locally using Sharp & Tesseract.js (no cloud upload, 100% private)
+              Supports single items, combo meal photos, or multiple image files at once
             </p>
           </div>
 
@@ -136,6 +136,63 @@
 
       <!-- Analysis Results Container -->
       <div id="analysis-results" style="display: none;">
+
+        <!-- Cumulative Multi-Product / Combo Meal Banner & Item Switcher -->
+        <div id="cumulative-container" style="display: none; margin-bottom: 1.25rem;">
+          <div class="card" style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border: 2px solid #86efac; border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow-md);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                  <span style="font-size: 1.4rem;">🍽️</span>
+                  <h3 id="combo-title" style="font-size: 1.25rem; font-weight: 800; color: #166534; margin: 0;">Cumulative Meal & Combo Analysis</h3>
+                  <span id="combo-hfss-badge" class="badge" style="font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 9999px;">HFSS Meal</span>
+                </div>
+                <p id="combo-subtitle" style="font-size: 0.85rem; color: #374151; margin: 0.35rem 0 0 0;">
+                  Combined aggregate nutrition and FSSAI suitability across all detected products.
+                </p>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 0.75rem; color: var(--neutral-600); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Combined Indian Nutrition Rating</div>
+                <div id="combo-inr-stars" style="font-size: 1.3rem; font-weight: 800; color: #ea580c; margin-top: 0.15rem;">★ ★ ★ ☆ ☆</div>
+              </div>
+            </div>
+
+            <!-- Cumulative Macro Metric Badges -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-top: 1rem;">
+              <div style="background: #ffffff; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #bbf7d0; text-align: center;">
+                <div style="font-size: 0.72rem; color: var(--neutral-600); text-transform: uppercase; font-weight: 700;">Total Calories</div>
+                <div id="combo-metric-calories" style="font-size: 1.25rem; font-weight: 800; color: #1f2937;">-</div>
+                <div style="font-size: 0.7rem; color: var(--neutral-500);">kcal total meal</div>
+              </div>
+              <div style="background: #ffffff; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #bbf7d0; text-align: center;">
+                <div style="font-size: 0.72rem; color: var(--neutral-600); text-transform: uppercase; font-weight: 700;">Sugar Calories</div>
+                <div id="combo-metric-sugar" style="font-size: 1.25rem; font-weight: 800; color: #dc2626;">-</div>
+                <div id="combo-metric-sugar-sub" style="font-size: 0.7rem; color: var(--neutral-500);">% of total (Limit: 10%)</div>
+              </div>
+              <div style="background: #ffffff; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #bbf7d0; text-align: center;">
+                <div style="font-size: 0.72rem; color: var(--neutral-600); text-transform: uppercase; font-weight: 700;">Sat Fat Calories</div>
+                <div id="combo-metric-satfat" style="font-size: 1.25rem; font-weight: 800; color: #d97706;">-</div>
+                <div id="combo-metric-satfat-sub" style="font-size: 0.7rem; color: var(--neutral-500);">% of total (Limit: 10%)</div>
+              </div>
+              <div style="background: #ffffff; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #bbf7d0; text-align: center;">
+                <div style="font-size: 0.72rem; color: var(--neutral-600); text-transform: uppercase; font-weight: 700;">Sodium Density</div>
+                <div id="combo-metric-sodium" style="font-size: 1.25rem; font-weight: 800; color: #4338ca;">-</div>
+                <div id="combo-metric-sodium-sub" style="font-size: 0.7rem; color: var(--neutral-500);">mg/kcal (Limit: 1.0)</div>
+              </div>
+            </div>
+
+            <!-- Product Switcher / Tab Bar -->
+            <div style="margin-top: 1.15rem; border-top: 1px dashed #86efac; padding-top: 0.85rem;">
+              <div style="font-size: 0.8rem; font-weight: 700; color: #166534; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                <span>Switch View: Inspect Combined Meal or Individual Items</span>
+                <span id="combo-items-count" style="font-size: 0.75rem; color: #4b5563;"></span>
+              </div>
+              <div id="combo-pill-bar" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <!-- Generated dynamically: [🍽️ Meal Total] [🥛 Item 1] [🍞 Item 2] -->
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Product Identity Header -->
         <div class="card" style="margin-bottom: 1rem; background: var(--neutral-100); border-color: var(--neutral-300);">

@@ -227,22 +227,27 @@ function setupEventListeners() {
   dropzone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropzone.style.borderColor = 'var(--neutral-300)';
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleImageUpload(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleImageUpload(e.dataTransfer.files);
     }
   });
 
   fileInput.addEventListener('change', () => {
-    if (fileInput.files && fileInput.files[0]) {
-      handleImageUpload(fileInput.files[0]);
+    if (fileInput.files && fileInput.files.length > 0) {
+      handleImageUpload(fileInput.files);
     }
   });
 
-  async function handleImageUpload(file) {
+  async function handleImageUpload(filesInput) {
+    const files = filesInput instanceof FileList ? Array.from(filesInput) : (Array.isArray(filesInput) ? filesInput : [filesInput]);
+    if (files.length === 0) return;
+
     statusMsg.style.display = 'none';
     loadingBox.style.display = 'block';
 
     const isGemini = geminiToggle && geminiToggle.checked;
+    const fileCount = files.length;
+    const isMultiUpload = fileCount > 1;
 
     const updateProgress = (pct, stepMsg) => {
       progressBar.style.width = `${pct}%`;
@@ -252,18 +257,18 @@ function setupEventListeners() {
 
     let timer1, timer2, timer3;
     if (isGemini) {
-      updateProgress(25, 'Step 1/3: Initializing AI Vision pipeline...');
+      updateProgress(25, isMultiUpload ? `Step 1/3: Ingesting ${fileCount} images into Multimodal AI pipeline...` : 'Step 1/3: Initializing AI Vision pipeline...');
       timer1 = setTimeout(() => {
-        updateProgress(65, 'Step 2/3: Multimodal AI reading nutrition table & ingredients list...');
+        updateProgress(65, isMultiUpload ? 'Step 2/3: Reading multi-product nutrition tables & ingredients lists...' : 'Step 2/3: Multimodal AI reading nutrition table & ingredients list...');
       }, 700);
       timer2 = setTimeout(() => {
         updateProgress(85, 'Step 3/3: Evaluating extracted nutrients against draft FSSAI thresholds...');
       }, 2000);
       timer3 = setTimeout(() => {
-        updateProgress(94, 'Finishing analysis & computing INR star ratings...');
+        updateProgress(94, 'Finishing cumulative meal aggregation & INR stars...');
       }, 4500);
     } else {
-      updateProgress(20, 'Step 1/3: Upscaling resolution & normalising contrast with Sharp...');
+      updateProgress(20, isMultiUpload ? `Step 1/3: Upscaling & pre-processing ${fileCount} images with Sharp...` : 'Step 1/3: Upscaling resolution & normalising contrast with Sharp...');
       timer1 = setTimeout(() => {
         updateProgress(55, 'Step 2/3: Running Tesseract.js neural OCR text recognition...');
       }, 600);
@@ -271,13 +276,15 @@ function setupEventListeners() {
         updateProgress(80, 'Step 3/3: Evaluating parsed values against FSSAI draft criteria...');
       }, 1800);
       timer3 = setTimeout(() => {
-        updateProgress(92, 'Finishing table alignment & Atwater checks...');
+        updateProgress(92, 'Aggregating cumulative meal nutrients & Atwater checks...');
       }, 3500);
     }
 
     const formData = new FormData();
     formData.append('engine', isGemini ? 'gemini' : 'tesseract');
-    formData.append('label_image', file);
+    files.forEach(f => {
+      formData.append('label_images', f);
+    });
 
     try {
       const res = await fetch('/api/analyze-image', {
@@ -296,26 +303,16 @@ function setupEventListeners() {
           loadingBox.style.display = 'none';
           statusMsg.style.display = 'block';
 
+          const uploadNames = files.map(f => f.name).join(', ');
           if (data.fallback_triggered) {
-            statusMsg.innerHTML = `<span style="color: #b45309; font-weight: 600;">⚠️ ${data.fallback_message || 'Cloud AI Vision temporarily busy (503). Analysis smoothly completed via local OCR.'}</span>`;
+            statusMsg.innerHTML = `<span style="color: #b45309; font-weight: 600;">⚠️ ${data.fallback_message || 'Cloud AI Vision temporarily busy. Analysis smoothly completed via local OCR.'}</span>`;
           } else if (data.engine_used === 'gemini') {
-            statusMsg.innerHTML = `<span style="color: var(--primary); font-weight: 600;">⚡ Analyzed "${file.name}" via Advanced AI Vision (${data.model || 'Gemini 3 Flash'}).</span>`;
+            statusMsg.innerHTML = `<span style="color: var(--primary); font-weight: 600;">⚡ Analyzed ${data.is_cumulative ? `${data.product_count || files.length} products combo` : `"${uploadNames}"`} via Advanced AI Vision (${data.model || 'Gemini Flash'}).</span>`;
           } else {
-            statusMsg.innerHTML = `<span style="color: var(--success); font-weight: 600;">✓ Scanned "${file.name}" locally via Tesseract.js (Confidence: ${Math.round(data.confidence || 88)}%).</span>`;
+            statusMsg.innerHTML = `<span style="color: var(--success); font-weight: 600;">✓ Scanned ${data.is_cumulative ? `${data.product_count || files.length} items combo` : `"${uploadNames}"`} locally via Tesseract.js.</span>`;
           }
 
-          const scannedProduct = {
-            id: `ocr-${Date.now()}`,
-            name: data.product_name || `Scanned Label (${file.name})`,
-            brand: data.brand || (data.engine_used === 'gemini' ? 'AI Vision' : 'Uploaded Image'),
-            category: 'Food Product',
-            engine_used: data.engine_used || (isGemini ? 'gemini' : 'tesseract'),
-            nutrients: data.parsed_nutrients,
-            evaluation: data.evaluation
-          };
-          state.comparisonPool.unshift(scannedProduct);
-          populateCompareDropdowns();
-          displayAnalysisResult(scannedProduct);
+          renderAnalysisFlow(data);
         }, 400);
       } else {
         clearTimeout(timer1);
@@ -332,6 +329,157 @@ function setupEventListeners() {
       loadingBox.style.display = 'none';
       statusMsg.style.display = 'block';
       statusMsg.innerHTML = `<span style="color: var(--danger); font-weight: 600;">Image analysis error: ${err.message}</span>`;
+    }
+  }
+
+  function renderAnalysisFlow(data) {
+    const cumulativeContainer = document.getElementById('cumulative-container');
+    const comboPillBar = document.getElementById('combo-pill-bar');
+    const comboTitle = document.getElementById('combo-title');
+    const comboHfssBadge = document.getElementById('combo-hfss-badge');
+    const comboInrStars = document.getElementById('combo-inr-stars');
+    const comboCalories = document.getElementById('combo-metric-calories');
+    const comboSugar = document.getElementById('combo-metric-sugar');
+    const comboSatFat = document.getElementById('combo-metric-satfat');
+    const comboSodium = document.getElementById('combo-metric-sodium');
+    const comboCountText = document.getElementById('combo-items-count');
+
+    if (data.is_cumulative && data.cumulative && data.products && data.products.length > 1) {
+      cumulativeContainer.style.display = 'block';
+
+      const cum = data.cumulative;
+      const metrics = cum.combo_metrics || {};
+
+      comboTitle.textContent = data.combo_title || cum.combo_title || 'Cumulative Meal & Combo Analysis';
+      if (comboCountText) comboCountText.textContent = `${data.products.length} Products Detected`;
+
+      if (metrics.is_hfss) {
+        comboHfssBadge.textContent = '⚠️ HFSS Meal Combination';
+        comboHfssBadge.style.background = '#fef2f2';
+        comboHfssBadge.style.color = '#dc2626';
+        comboHfssBadge.style.border = '1px solid #fecaca';
+      } else {
+        comboHfssBadge.textContent = '✓ Balanced Non-HFSS Meal';
+        comboHfssBadge.style.background = '#f0fdf4';
+        comboHfssBadge.style.color = '#16a34a';
+        comboHfssBadge.style.border = '1px solid #bbf7d0';
+      }
+
+      const inrVal = metrics.inr_stars !== undefined ? metrics.inr_stars : (cum.evaluation?.inr?.inr_stars || 0);
+      comboInrStars.textContent = '⭐'.repeat(Math.floor(inrVal)) + (inrVal % 1 !== 0 ? '½' : '') + ` (${inrVal}/5.0)`;
+
+      comboCalories.textContent = metrics.total_calories || cum.cumulative_nutrients?.energy_kcal || 0;
+      comboSugar.textContent = `${metrics.sugar_calorie_pct || 0}%`;
+      comboSatFat.textContent = `${metrics.sat_fat_calorie_pct || 0}%`;
+      comboSodium.textContent = metrics.sodium_density_mg_per_kcal !== undefined ? `${metrics.sodium_density_mg_per_kcal}` : '-';
+
+      // Build the Meal Combo product for display
+      const comboMealProduct = {
+        id: `combo-meal-${Date.now()}`,
+        name: data.combo_title || cum.combo_title || 'Cumulative Meal',
+        brand: `Meal Combo (${data.products.length} Items)`,
+        category: 'Dietary Combo',
+        serving_size: cum.cumulative_nutrients?.serving_size || `Combined Meal (${data.products.length} items)`,
+        engine_used: data.engine_used,
+        nutrients: cum.cumulative_nutrients,
+        evaluation: cum.evaluation
+      };
+
+      // Format individual products for state & comparison pool
+      const formattedIndividualProducts = data.products.map((p, idx) => ({
+        id: `combo-item-${idx + 1}-${Date.now()}`,
+        name: p.product_name || `Item ${idx + 1}`,
+        brand: p.brand || 'Packaged Product',
+        category: 'Food Item',
+        serving_size: p.serving_size || p.nutrients?.serving_size || 'per 100g',
+        engine_used: data.engine_used,
+        nutrients: p.nutrients || p,
+        evaluation: p.evaluation
+      }));
+
+      // Add individual products and combo meal to comparison pool
+      state.comparisonPool.unshift(comboMealProduct);
+      formattedIndividualProducts.forEach(ip => state.comparisonPool.unshift(ip));
+      populateCompareDropdowns();
+
+      // Render Pills in Switcher Bar
+      comboPillBar.innerHTML = '';
+
+      const createPill = (label, icon, active, onClick) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.padding = '0.4rem 0.85rem';
+        btn.style.borderRadius = '9999px';
+        btn.style.fontSize = '0.82rem';
+        btn.style.fontWeight = '700';
+        btn.style.cursor = 'pointer';
+        btn.style.display = 'inline-flex';
+        btn.style.alignItems = 'center';
+        btn.style.gap = '0.35rem';
+        btn.style.transition = 'all 0.2s ease';
+
+        const setStyle = (isActive) => {
+          if (isActive) {
+            btn.style.background = '#15803d';
+            btn.style.color = '#ffffff';
+            btn.style.border = '1px solid #15803d';
+            btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+          } else {
+            btn.style.background = '#ffffff';
+            btn.style.color = '#1f2937';
+            btn.style.border = '1px solid #cbd5e1';
+            btn.style.boxShadow = 'none';
+          }
+        };
+
+        setStyle(active);
+        btn.innerHTML = `<span>${icon}</span><span>${label}</span>`;
+        btn.addEventListener('click', () => {
+          comboPillBar.querySelectorAll('button').forEach(b => {
+            b.style.background = '#ffffff';
+            b.style.color = '#1f2937';
+            b.style.border = '1px solid #cbd5e1';
+            b.style.boxShadow = 'none';
+          });
+          setStyle(true);
+          onClick();
+        });
+        return btn;
+      };
+
+      // Meal Total Pill
+      const mealPill = createPill('Meal Total (Combined)', '🍽️', true, () => {
+        displayAnalysisResult(comboMealProduct);
+      });
+      comboPillBar.appendChild(mealPill);
+
+      // Individual Product Pills
+      formattedIndividualProducts.forEach((ip) => {
+        const prodPill = createPill(`${ip.name}`, '📦', false, () => {
+          displayAnalysisResult(ip);
+        });
+        comboPillBar.appendChild(prodPill);
+      });
+
+      // Display Meal Total by default
+      displayAnalysisResult(comboMealProduct);
+
+    } else {
+      // Single product
+      cumulativeContainer.style.display = 'none';
+
+      const scannedProduct = {
+        id: `ocr-${Date.now()}`,
+        name: data.product_name || 'Scanned Product',
+        brand: data.brand || (data.engine_used === 'gemini' ? 'AI Vision' : 'Uploaded Image'),
+        category: 'Food Product',
+        engine_used: data.engine_used,
+        nutrients: data.parsed_nutrients,
+        evaluation: data.evaluation
+      };
+      state.comparisonPool.unshift(scannedProduct);
+      populateCompareDropdowns();
+      displayAnalysisResult(scannedProduct);
     }
   }
 
