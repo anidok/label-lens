@@ -12,6 +12,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { parseNutritionText } from './engine/parser.js';
 import { evaluateFoodProduct } from './engine/rules-engine.js';
 import { computeCumulativeAnalysis } from './engine/cumulative.js';
+import { evaluateFoodProductML } from './engine/ml-classifier.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,9 +48,11 @@ app.get('/api/presets', (req, res) => {
       ...item.nutrients,
       ingredients_text: item.ingredients
     });
+    const mlEvaluation = evaluateFoodProductML(item.nutrients);
     return {
       ...item,
-      evaluation
+      evaluation,
+      ml_evaluation: mlEvaluation
     };
   });
   res.json({ presets: enriched });
@@ -78,15 +81,32 @@ app.post('/api/analyze-text', (req, res) => {
     }
 
     const evaluation = evaluateFoodProduct(parsedNutrients);
+    const mlEvaluation = evaluateFoodProductML(parsedNutrients);
 
     res.json({
       success: true,
       raw_text: text || '',
       parsed_nutrients: parsedNutrients,
-      evaluation
+      evaluation,
+      ml_evaluation: mlEvaluation
     });
   } catch (err) {
     console.error('Error analyzing text:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Dedicated ML Evaluation endpoint for interactive toggling & live recalculation
+app.post('/api/evaluate-ml', (req, res) => {
+  try {
+    const { nutrients } = req.body;
+    const mlEvaluation = evaluateFoodProductML(nutrients);
+    res.json({
+      success: true,
+      ml_evaluation: mlEvaluation
+    });
+  } catch (err) {
+    console.error('Error evaluating ML model:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -285,13 +305,15 @@ CRITICAL MULTI-PRODUCT & COMBO INSTRUCTIONS:
             p.energy_kcal = Math.round((p.protein_g || 0) * 4 + (p.carbohydrate_g || 0) * 4 + (p.total_fat_g || 0) * 9);
           }
           const evaluation = evaluateFoodProduct(p);
+          const mlEvaluation = evaluateFoodProductML(p);
           return {
             id: `prod-${idx + 1}`,
             product_name: p.product_name || `Product ${idx + 1}`,
             brand: p.brand || 'Detected Brand',
             serving_size: p.serving_size || 'per 100g',
             nutrients: p,
-            evaluation
+            evaluation,
+            ml_evaluation: mlEvaluation
           };
         });
 
@@ -313,6 +335,7 @@ CRITICAL MULTI-PRODUCT & COMBO INSTRUCTIONS:
           brand: isCombo ? `${processedProducts.length} Items Meal Combo` : mainProd.brand,
           parsed_nutrients: isCombo ? cumulative.cumulative_nutrients : mainProd.nutrients,
           evaluation: isCombo ? cumulative.evaluation : mainProd.evaluation,
+          ml_evaluation: isCombo ? cumulative.ml_evaluation : mainProd.ml_evaluation,
           raw_text: response.text
         });
 
@@ -338,13 +361,15 @@ CRITICAL MULTI-PRODUCT & COMBO INSTRUCTIONS:
 
       const parsedNutrients = parseNutritionText(ocrResult.text);
       const evaluation = evaluateFoodProduct(parsedNutrients);
+      const mlEvaluation = evaluateFoodProductML(parsedNutrients);
       localProducts.push({
         id: `prod-${i + 1}`,
         product_name: file.originalname.replace(/\.[^/.]+$/, ''),
         brand: 'Local OCR Detection',
         serving_size: parsedNutrients.serving_size || 'per 100g',
         nutrients: parsedNutrients,
-        evaluation
+        evaluation,
+        ml_evaluation: mlEvaluation
       });
     }
 
@@ -366,6 +391,7 @@ CRITICAL MULTI-PRODUCT & COMBO INSTRUCTIONS:
       brand: isCombo ? `${localProducts.length} Items Meal Combo` : mainProd.brand,
       parsed_nutrients: isCombo ? cumulative.cumulative_nutrients : mainProd.nutrients,
       evaluation: isCombo ? cumulative.evaluation : mainProd.evaluation,
+      ml_evaluation: isCombo ? cumulative.ml_evaluation : mainProd.ml_evaluation,
       raw_ocr_text: combinedRawOcrText.trim(),
       orientation_angle: lastOrientation,
       confidence: lastConfidence

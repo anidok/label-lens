@@ -1,4 +1,5 @@
 import { evaluateFoodProduct } from './rules-engine.js';
+import { evaluateFoodProductML } from './ml-classifier.js';
 
 /**
  * Computes cumulative / combined meal nutritional analysis across multiple food products
@@ -18,16 +19,19 @@ export function computeCumulativeAnalysis(products) {
     const single = products[0];
     const nutrients = single.nutrients || single;
     const evaluation = single.evaluation || evaluateFoodProduct(nutrients);
+    const mlEvaluation = single.ml_evaluation || evaluateFoodProductML(nutrients);
     return {
       is_combo: false,
       product_count: 1,
       combo_title: single.product_name || 'Single Food Product',
       cumulative_nutrients: nutrients,
       evaluation,
+      ml_evaluation: mlEvaluation,
       products: [{
         ...single,
         nutrients,
-        evaluation
+        evaluation,
+        ml_evaluation: mlEvaluation
       }]
     };
   }
@@ -100,8 +104,9 @@ export function computeCumulativeAnalysis(products) {
     ingredients_text: combinedIngredients.join('; ')
   };
 
-  // Evaluate the entire combined meal against FSSAI guidelines
+  // Evaluate the entire combined meal against FSSAI guidelines and ML model
   const cumulativeEvaluation = evaluateFoodProduct(cumulativeNutrients);
+  const cumulativeMlEvaluation = evaluateFoodProductML(cumulativeNutrients);
 
   const comboTitle = productNames.join(' + ');
 
@@ -118,6 +123,7 @@ export function computeCumulativeAnalysis(products) {
     combo_title: comboTitle,
     cumulative_nutrients: cumulativeNutrients,
     evaluation: cumulativeEvaluation,
+    ml_evaluation: cumulativeMlEvaluation,
     products: processedProducts,
     combo_metrics: {
       total_calories: cumulativeNutrients.energy_kcal,
@@ -125,7 +131,9 @@ export function computeCumulativeAnalysis(products) {
       sat_fat_calorie_pct: satFatPct,
       sodium_density_mg_per_kcal: sodiumDensity,
       is_hfss: cumulativeEvaluation.hfss?.is_hfss || false,
-      inr_stars: cumulativeEvaluation.inr?.inr_stars || 0
+      inr_stars: cumulativeEvaluation.inr?.inr_stars || 0,
+      ml_is_hfss: cumulativeMlEvaluation.is_hfss,
+      ml_probability_hfss: cumulativeMlEvaluation.probability_hfss
     }
   };
 }
