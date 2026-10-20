@@ -126,40 +126,61 @@ CRITICAL INSTRUCTIONS:
 6. Provide numeric numbers for all nutrient fields (use 0 or null if not mentioned).`;
 
       try {
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: [
-            {
-              inlineData: {
-                data: req.file.buffer.toString('base64'),
-                mimeType: mimeType
+        const candidateModels = ['gemini-3.7-flash', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
+        let response = null;
+        let activeModel = 'gemini-3.7-flash';
+        let lastErr = null;
+
+        for (const modelCandidate of candidateModels) {
+          try {
+            console.log(`Attempting AI Vision generation with model: ${modelCandidate}...`);
+            response = await ai.models.generateContent({
+              model: modelCandidate,
+              contents: [
+                {
+                  inlineData: {
+                    data: req.file.buffer.toString('base64'),
+                    mimeType: mimeType
+                  }
+                },
+                prompt
+              ],
+              config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                  type: Type.OBJECT,
+                  properties: {
+                    product_name: { type: Type.STRING, description: 'Product title or trade name from package' },
+                    brand: { type: Type.STRING, description: 'Brand or manufacturer name' },
+                    serving_size: { type: Type.STRING, description: 'Serving basis, e.g. "per 100g", "per 100ml", "per 70g pack"' },
+                    energy_kcal: { type: Type.NUMBER, description: 'Energy in kcal per 100g or per 100ml' },
+                    total_fat_g: { type: Type.NUMBER, description: 'Total fat in grams per 100g or per 100ml' },
+                    saturated_fat_g: { type: Type.NUMBER, description: 'Saturated fat in grams per 100g or per 100ml' },
+                    trans_fat_g: { type: Type.NUMBER, description: 'Trans fat in grams per 100g or per 100ml' },
+                    carbohydrate_g: { type: Type.NUMBER, description: 'Total carbohydrates in grams per 100g or per 100ml' },
+                    total_sugars_g: { type: Type.NUMBER, description: 'Total sugars in grams per 100g or per 100ml' },
+                    added_sugars_g: { type: Type.NUMBER, description: 'Added sugars in grams per 100g or per 100ml' },
+                    dietary_fibre_g: { type: Type.NUMBER, description: 'Dietary fibre in grams per 100g or per 100ml' },
+                    protein_g: { type: Type.NUMBER, description: 'Protein in grams per 100g or per 100ml' },
+                    sodium_mg: { type: Type.NUMBER, description: 'Sodium in milligrams per 100g or per 100ml' },
+                    ingredients_text: { type: Type.STRING, description: 'Complete ingredient list as printed on packaging' }
+                  }
+                }
               }
-            },
-            prompt
-          ],
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                product_name: { type: Type.STRING, description: 'Product title or trade name from package' },
-                brand: { type: Type.STRING, description: 'Brand or manufacturer name' },
-                serving_size: { type: Type.STRING, description: 'Serving basis, e.g. "per 100g", "per 100ml", "per 70g pack"' },
-                energy_kcal: { type: Type.NUMBER, description: 'Energy in kcal per 100g or per 100ml' },
-                total_fat_g: { type: Type.NUMBER, description: 'Total fat in grams per 100g or per 100ml' },
-                saturated_fat_g: { type: Type.NUMBER, description: 'Saturated fat in grams per 100g or per 100ml' },
-                trans_fat_g: { type: Type.NUMBER, description: 'Trans fat in grams per 100g or per 100ml' },
-                carbohydrate_g: { type: Type.NUMBER, description: 'Total carbohydrates in grams per 100g or per 100ml' },
-                total_sugars_g: { type: Type.NUMBER, description: 'Total sugars in grams per 100g or per 100ml' },
-                added_sugars_g: { type: Type.NUMBER, description: 'Added sugars in grams per 100g or per 100ml' },
-                dietary_fibre_g: { type: Type.NUMBER, description: 'Dietary fibre in grams per 100g or per 100ml' },
-                protein_g: { type: Type.NUMBER, description: 'Protein in grams per 100g or per 100ml' },
-                sodium_mg: { type: Type.NUMBER, description: 'Sodium in milligrams per 100g or per 100ml' },
-                ingredients_text: { type: Type.STRING, description: 'Complete ingredient list as printed on packaging' }
-              }
+            });
+            if (response && response.text) {
+              activeModel = modelCandidate;
+              break;
             }
+          } catch (modelErr) {
+            console.warn(`Model ${modelCandidate} failed (${modelErr.status || modelErr.message}), trying next candidate...`);
+            lastErr = modelErr;
           }
-        });
+        }
+
+        if (!response || !response.text) {
+          throw lastErr || new Error('No candidate AI Vision model responded successfully');
+        }
 
         const extracted = JSON.parse(response.text);
 
@@ -173,7 +194,7 @@ CRITICAL INSTRUCTIONS:
         return res.json({
           success: true,
           engine_used: 'gemini',
-          model: 'gemini-2.5-flash',
+          model: activeModel,
           product_name: extracted.product_name || req.file.originalname.replace(/\.[^/.]+$/, ''),
           brand: extracted.brand || 'Detected Brand',
           parsed_nutrients: extracted,
