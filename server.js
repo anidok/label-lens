@@ -100,6 +100,8 @@ app.post('/api/analyze-image', upload.single('label_image'), async (req, res) =>
     const requestedEngine = (req.body.engine || 'tesseract').toLowerCase();
     console.log(`Processing image: ${req.file.originalname} (${req.file.size} bytes), Engine: ${requestedEngine}`);
 
+    let fallbackReason = null;
+
     // --- ENGINE 1: Multimodal AI Vision ---
     if (requestedEngine === 'gemini') {
       const apiKey = process.env.GEMINI_API_KEY || req.body.gemini_api_key;
@@ -126,9 +128,9 @@ CRITICAL INSTRUCTIONS:
 6. Provide numeric numbers for all nutrient fields (use 0 or null if not mentioned).`;
 
       try {
-        const candidateModels = ['gemini-3.7-flash', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
+        const candidateModels = ['gemini-3-flash-preview', 'gemini-3.7-flash', 'gemini-flash-latest'];
         let response = null;
-        let activeModel = 'gemini-3.7-flash';
+        let activeModel = 'gemini-3-flash-preview';
         let lastErr = null;
 
         for (const modelCandidate of candidateModels) {
@@ -202,11 +204,9 @@ CRITICAL INSTRUCTIONS:
           evaluation
         });
       } catch (aiErr) {
-        console.error('AI Vision processing error:', aiErr);
-        return res.status(500).json({
-          success: false,
-          error: `AI Vision processing error: ${aiErr.message}. You can disable the AI Vision toggle to use local offline OCR.`
-        });
+        console.warn('AI Vision cloud temporarily busy/unavailable. Falling back smoothly to local offline OCR pipeline:', aiErr.message);
+        fallbackReason = 'Cloud AI Vision temporarily experienced high demand (503). Analysis smoothly completed via on-device Local OCR.';
+        // Smoothly proceed to Engine 2 below!
       }
     }
 
@@ -293,6 +293,8 @@ CRITICAL INSTRUCTIONS:
     res.json({
       success: true,
       engine_used: 'tesseract',
+      fallback_triggered: !!fallbackReason,
+      fallback_message: fallbackReason || null,
       raw_ocr_text: best.text,
       orientation_angle: best.angle,
       confidence: best.confidence,

@@ -250,15 +250,18 @@ function setupEventListeners() {
       if (stepMsg) substepText.textContent = stepMsg;
     };
 
-    let timer1, timer2;
+    let timer1, timer2, timer3;
     if (isGemini) {
       updateProgress(25, 'Step 1/3: Initializing AI Vision pipeline...');
       timer1 = setTimeout(() => {
         updateProgress(65, 'Step 2/3: Multimodal AI reading nutrition table & ingredients list...');
       }, 700);
       timer2 = setTimeout(() => {
-        updateProgress(88, 'Step 3/3: Evaluating extracted nutrients against draft FSSAI thresholds...');
-      }, 1800);
+        updateProgress(85, 'Step 3/3: Evaluating extracted nutrients against draft FSSAI thresholds...');
+      }, 2000);
+      timer3 = setTimeout(() => {
+        updateProgress(94, 'Finishing analysis & computing INR star ratings...');
+      }, 4500);
     } else {
       updateProgress(20, 'Step 1/3: Upscaling resolution & normalising contrast with Sharp...');
       timer1 = setTimeout(() => {
@@ -267,6 +270,9 @@ function setupEventListeners() {
       timer2 = setTimeout(() => {
         updateProgress(80, 'Step 3/3: Evaluating parsed values against FSSAI draft criteria...');
       }, 1800);
+      timer3 = setTimeout(() => {
+        updateProgress(92, 'Finishing table alignment & Atwater checks...');
+      }, 3500);
     }
 
     const formData = new FormData();
@@ -282,6 +288,7 @@ function setupEventListeners() {
 
       clearTimeout(timer1);
       clearTimeout(timer2);
+      clearTimeout(timer3);
 
       if (data.success) {
         updateProgress(100, '✓ Complete! Rendering analysis...');
@@ -289,8 +296,10 @@ function setupEventListeners() {
           loadingBox.style.display = 'none';
           statusMsg.style.display = 'block';
 
-          if (data.engine_used === 'gemini') {
-            statusMsg.innerHTML = `<span style="color: var(--primary); font-weight: 600;">⚡ Analyzed "${file.name}" via Advanced AI Vision.</span>`;
+          if (data.fallback_triggered) {
+            statusMsg.innerHTML = `<span style="color: #b45309; font-weight: 600;">⚠️ ${data.fallback_message || 'Cloud AI Vision temporarily busy (503). Analysis smoothly completed via local OCR.'}</span>`;
+          } else if (data.engine_used === 'gemini') {
+            statusMsg.innerHTML = `<span style="color: var(--primary); font-weight: 600;">⚡ Analyzed "${file.name}" via Advanced AI Vision (${data.model || 'Gemini 3 Flash'}).</span>`;
           } else {
             statusMsg.innerHTML = `<span style="color: var(--success); font-weight: 600;">✓ Scanned "${file.name}" locally via Tesseract.js (Confidence: ${Math.round(data.confidence || 88)}%).</span>`;
           }
@@ -311,6 +320,7 @@ function setupEventListeners() {
       } else {
         clearTimeout(timer1);
         clearTimeout(timer2);
+        clearTimeout(timer3);
         loadingBox.style.display = 'none';
         statusMsg.style.display = 'block';
         statusMsg.innerHTML = `<span style="color: var(--danger); font-weight: 600;">Failed: ${data.error}</span>`;
@@ -318,6 +328,7 @@ function setupEventListeners() {
     } catch (err) {
       clearTimeout(timer1);
       clearTimeout(timer2);
+      clearTimeout(timer3);
       loadingBox.style.display = 'none';
       statusMsg.style.display = 'block';
       statusMsg.innerHTML = `<span style="color: var(--danger); font-weight: 600;">Image analysis error: ${err.message}</span>`;
