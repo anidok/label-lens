@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -101,11 +102,11 @@ app.post('/api/analyze-image', upload.single('label_image'), async (req, res) =>
 
     // --- ENGINE 1: Google Gemini Flash Vision ---
     if (requestedEngine === 'gemini') {
-      const apiKey = req.body.gemini_api_key || process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY || req.body.gemini_api_key;
       if (!apiKey) {
         return res.status(400).json({
           success: false,
-          error: 'Gemini API key is required when using Gemini Vision. Please enter your API key in the UI field, set GEMINI_API_KEY env variable, or turn off the toggle to use local offline OCR.'
+          error: 'GEMINI_API_KEY is not configured in your backend .env file. Please add GEMINI_API_KEY to your .env file and restart the server, or turn off the Gemini toggle to use local offline OCR.'
         });
       }
 

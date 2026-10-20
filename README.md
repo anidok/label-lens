@@ -56,7 +56,7 @@ Label Lens provides a flexible, dual-mode vision engine with an instant **UI Tog
    - **High Accuracy Across Real-World Packaging:** Powered by Google's `gemini-2.5-flash` model via the official `@google/genai` SDK.
    - **Zero Glare / Curved Packaging Errors:** Seamlessly parses curved cylindrical containers (e.g., cup noodles), glossy cellophane wrappers, and condensed multi-column tables.
    - **Structured FSSAI Schema:** Enforces strict typed JSON schema extraction (`responseSchema`), automatically standardizing nutrients to per-100g/per-100ml basis.
-   - **Flexible Key Management:** Accepts `GEMINI_API_KEY` from the server environment or directly through the UI with secure browser `localStorage` persistence.
+   - **Secure Backend Config (.env):** Configure `GEMINI_API_KEY` once in `.env` — keeping API credentials securely on the server without exposing them in client UI.
    - **Resilient Fallback:** Displays helpful troubleshooting prompts and allows instant 1-click fallback to the offline OCR engine if offline or without internet access.
 
 ---
@@ -87,8 +87,9 @@ cd label-lens
 # Install node dependencies
 npm install
 
-# (Optional) Export Gemini API Key for server-wide multimodal vision
-export GEMINI_API_KEY="your-gemini-api-key"
+# (Optional) Configure Gemini API Key in .env
+cp .env.example .env
+# Edit .env and set GEMINI_API_KEY="AIzaSy..."
 
 # Start the server
 npm start
@@ -96,7 +97,7 @@ npm start
 Open **[http://localhost:3000](http://localhost:3000)** in your browser or phone.
 
 > [!TIP]
-> **No API Key? No Problem!** Label Lens is 100% functional out-of-the-box using the built-in local offline OCR engine. If you want to use Gemini Flash AI, you can also paste your API key directly into the UI toggle bar in the browser.
+> **No API Key? No Problem!** Label Lens is 100% functional out-of-the-box using the built-in local offline OCR engine. If you want to use the Gemini Flash Vision engine, simply set `GEMINI_API_KEY` in your `.env` file and turn ON the toggle switch in the UI.
 
 ### 2. Run the Academic ML Benchmark (Chapter 7 Metrics)
 ```bash

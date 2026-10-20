@@ -155,21 +155,14 @@ function setupEventListeners() {
     }
   });
 
-  // Vision Engine Toggle & Key Storage
+  // Vision Engine Toggle (Backend .env handles API Key)
   const geminiToggle = document.getElementById('gemini-toggle');
   const engineBadge = document.getElementById('engine-badge');
   const engineDesc = document.getElementById('engine-desc');
   const dropzoneHint = document.getElementById('dropzone-hint');
-  const keyContainer = document.getElementById('gemini-key-container');
-  const keyInput = document.getElementById('gemini-api-key-input');
-  const btnSaveKey = document.getElementById('btn-save-gemini-key');
 
-  // Load saved preferences
+  // Load saved toggle preference
   const savedEngine = localStorage.getItem('label_lens_gemini_enabled');
-  const savedKey = localStorage.getItem('label_lens_gemini_key');
-  if (savedKey && keyInput) {
-    keyInput.value = savedKey;
-  }
 
   function updateToggleUI(isGemini) {
     if (isGemini) {
@@ -180,12 +173,11 @@ function setupEventListeners() {
         engineBadge.style.border = '1px solid #c7d2fe';
       }
       if (engineDesc) {
-        engineDesc.textContent = 'Multimodal AI vision enabled: High-accuracy extraction across curved, glossy packaging & micro-fonts.';
+        engineDesc.textContent = 'Multimodal AI vision enabled: High-accuracy extraction across curved, glossy packaging & micro-fonts (configured via backend .env).';
       }
       if (dropzoneHint) {
         dropzoneHint.textContent = 'Multimodal AI Vision with Google Gemini Flash — high-precision extraction for curved/glare labels';
       }
-      if (keyContainer) keyContainer.style.display = 'flex';
     } else {
       if (engineBadge) {
         engineBadge.textContent = 'OFFLINE (Tesseract.js)';
@@ -199,7 +191,6 @@ function setupEventListeners() {
       if (dropzoneHint) {
         dropzoneHint.textContent = 'Processed locally using Sharp & Tesseract.js (no cloud upload, 100% private)';
       }
-      if (keyContainer) keyContainer.style.display = 'none';
     }
   }
 
@@ -210,14 +201,6 @@ function setupEventListeners() {
     geminiToggle.addEventListener('change', () => {
       localStorage.setItem('label_lens_gemini_enabled', geminiToggle.checked);
       updateToggleUI(geminiToggle.checked);
-    });
-  }
-
-  if (btnSaveKey && keyInput) {
-    btnSaveKey.addEventListener('click', () => {
-      const val = keyInput.value.trim();
-      localStorage.setItem('label_lens_gemini_key', val);
-      alert(val ? '✓ Gemini API key saved locally in browser!' : 'Gemini API key cleared.');
     });
   }
 
@@ -260,7 +243,6 @@ function setupEventListeners() {
     loadingBox.style.display = 'block';
 
     const isGemini = geminiToggle && geminiToggle.checked;
-    const clientKey = (keyInput && keyInput.value.trim()) || localStorage.getItem('label_lens_gemini_key') || '';
 
     const updateProgress = (pct, stepMsg) => {
       progressBar.style.width = `${pct}%`;
@@ -289,9 +271,6 @@ function setupEventListeners() {
 
     const formData = new FormData();
     formData.append('engine', isGemini ? 'gemini' : 'tesseract');
-    if (isGemini && clientKey) {
-      formData.append('gemini_api_key', clientKey);
-    }
     formData.append('label_image', file);
 
     try {
