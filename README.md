@@ -13,33 +13,43 @@ It is grounded directly in the statutory definitions of the **FSSAI 2022 Draft L
 
 ---
 
-## ⚡ Dual-Engine Label Recognition Architecture
+### ⚡ Dual-Engine Label Recognition & Multi-Product Architecture
 
 Label Lens provides a flexible, dual-mode vision engine with an instant **UI Toggle Switch** in the photo upload interface:
 
 ```
                       ┌────────────────────────────────────────┐
-                      │        Upload Food Label Photo         │
+                      │    Upload Food Label Photo(s)          │
+                      │  • Single Item Photo                   │
+                      │  • Multi-Product Single Photo (Combo)  │
+                      │  • Multiple Image Files Uploaded       │
                       └──────────────────┬─────────────────────┘
                                          │
                          [ Vision Engine Toggle Switch ]
                                 ╱                 ╲
                     Toggle OFF ╱                   ╲ Toggle ON
-                              ▼                     ▼
+                               ▼                     ▼
           ┌────────────────────────────┐   ┌────────────────────────────┐
-          │  Offline Local OCR Engine  │   │   Gemini Flash AI Vision   │
+          │  Offline Local OCR Engine  │   │      AI Vision Engine      │
           │     (Sharp + Tesseract)    │   │      (@google/genai)       │
           ├────────────────────────────┤   ├────────────────────────────┤
-          │ • 100% on-device & offline │   │ • Multimodal AI (Gemini    │
-          │ • Zero cloud calls/private │   │   2.5 Flash)               │
-          │ • Multi-angle auto-rotate  │   │ • Solves curved packaging, │
-          │   (0°, 90°, 270°)          │   │   glare & micro-fonts      │
+          │ • 100% on-device & offline │   │ • Multimodal AI Vision     │
+          │ • Zero cloud calls/private │   │ • Solves curved packaging, │
+          │ • Multi-image looping      │   │   glare & micro-fonts      │
+          │ • Multi-angle auto-rotate  │   │ • Multi-product extraction │
+          │   (0°, 90°, 270°)          │   │   from 1 or more photos    │
           │ • Dual-pass contrast & red │   │ • Strict JSON schema       │
           │   channel ink separation   │   │   guarantees zero halluc-  │
           │ • Atwater energy fallback  │   │   inated nutrient fields   │
           └─────────────┬──────────────┘   └─────────────┬──────────────┘
                         │                                │
                         └───────────────┬────────────────┘
+                                        ▼
+          ┌─────────────────────────────────────────────────────────────┐
+          │       engine/cumulative.js Meal Aggregation Engine          │
+          │  • Multi-Product Aggregation (Calories, Sugars, Sat Fat, Na)│
+          │  • Combined Macro Calorie Percentages & Sodium Density      │
+          └─────────────────────────────┬───────────────────────────────┘
                                         ▼
                       ┌──────────────────────────────────┐
                       │    FSSAI 2022 XAI Rule Engine    │
@@ -51,13 +61,32 @@ Label Lens provides a flexible, dual-mode vision engine with an instant **UI Tog
 1. **Local Offline OCR Engine (Toggle OFF - Default):**
    - **Privacy-Preserving & Offline:** Runs entirely on-device without external cloud dependencies or API keys.
    - **Computer Vision Pipeline:** Powered by `sharp` and `tesseract.js` featuring multi-angle auto-orientation detection (0°, 90°, 270°), dual-pass adaptive contrast enhancement (`.linear(1.5, -40)`), blue-ink red-channel extraction, and Atwater factor energy estimation fallback ($4P + 4C + 9F$).
+   - **Multi-File Batch Support:** Processes multiple uploaded image files sequentially and aggregates them into cumulative meal totals.
 
-2. **Multimodal Gemini Flash AI Vision (Toggle ON):**
-   - **High Accuracy Across Real-World Packaging:** Powered by Google's `gemini-2.5-flash` model via the official `@google/genai` SDK.
+2. **Multimodal AI Vision (Toggle ON):**
+   - **High Accuracy Across Real-World Packaging:** Powered by Google's Gemini Flash Vision models via the official `@google/genai` SDK.
+   - **Multi-Product Single-Image Detection:** Intelligently identifies and isolates multiple food products captured together within a single photograph (e.g., a breakfast photo with both a milk carton and a biscuit/bread packet).
+   - **Multi-Image Simultaneous Ingestion:** Upload multiple image files at once (e.g. snack + beverage) to analyze both the individual products and their combined meal totals.
    - **Zero Glare / Curved Packaging Errors:** Seamlessly parses curved cylindrical containers (e.g., cup noodles), glossy cellophane wrappers, and condensed multi-column tables.
    - **Structured FSSAI Schema:** Enforces strict typed JSON schema extraction (`responseSchema`), automatically standardizing nutrients to per-100g/per-100ml basis.
    - **Secure Backend Config (.env):** Configure `GEMINI_API_KEY` once in `.env` — keeping API credentials securely on the server without exposing them in client UI.
-   - **Resilient Fallback:** Displays helpful troubleshooting prompts and allows instant 1-click fallback to the offline OCR engine if offline or without internet access.
+   - **Resilient Fallback:** Automatically switches to the local offline OCR engine if the cloud experiences temporary high load (503) or rate limits.
+
+---
+
+## 🍽️ Cumulative Multi-Product & Combo Meal Analysis
+
+Real-world consumer diets rarely involve eating an isolated packaged item. Consumers frequently pair items together — such as **Milk + Bread**, **Noodles + Beverage**, or **Tea + Biscuits**. 
+
+Label Lens introduces the **Cumulative Combo Engine** ([`engine/cumulative.js`](file:///Users/aniket/go/src/source.golabs.io/gopay/workspace/label-lens/engine/cumulative.js)):
+- **Dual Multi-Product Input Modes:**
+  1. *Single Image with Multiple Products:* Upload one photo containing multiple food packages.
+  2. *Multiple Images:* Select or drop 2+ image files at once.
+- **Combined Nutritional Summation:** Computes exact totals for Energy (kcal), Saturated Fat (g), Total Sugars (g), and Sodium (mg).
+- **Meal-Level FSSAI Compliance:**
+  - **Meal HFSS Determination:** Evaluates whether the combination crosses statutory thresholds (e.g., Sugar calories $> 10\%$, Saturated Fat calories $> 10\%$, or Sodium density $> 1.0\text{ mg/kcal}$).
+  - **Combined Indian Nutrition Rating (INR):** Assigns holistic 0.5 to 5.0 stars to the complete meal combo.
+- **Interactive Product Switcher UI:** Users can view the aggregated **Meal Total** or click on any individual product pill to inspect its specific nutrient breakdown, radar chart, additives, and warnings.
 
 ---
 
