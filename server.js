@@ -100,13 +100,13 @@ app.post('/api/analyze-image', upload.single('label_image'), async (req, res) =>
     const requestedEngine = (req.body.engine || 'tesseract').toLowerCase();
     console.log(`Processing image: ${req.file.originalname} (${req.file.size} bytes), Engine: ${requestedEngine}`);
 
-    // --- ENGINE 1: Google Gemini Flash Vision ---
+    // --- ENGINE 1: Multimodal AI Vision ---
     if (requestedEngine === 'gemini') {
       const apiKey = process.env.GEMINI_API_KEY || req.body.gemini_api_key;
       if (!apiKey) {
         return res.status(400).json({
           success: false,
-          error: 'GEMINI_API_KEY is not configured in your backend .env file. Please add GEMINI_API_KEY to your .env file and restart the server, or turn off the Gemini toggle to use local offline OCR.'
+          error: 'AI Vision API key is not configured in your backend .env file. Please add GEMINI_API_KEY to your .env file and restart the server, or turn off the AI Vision toggle to use local offline OCR.'
         });
       }
 
@@ -180,11 +180,11 @@ CRITICAL INSTRUCTIONS:
           raw_text: response.text,
           evaluation
         });
-      } catch (geminiErr) {
-        console.error('Gemini Vision processing error:', geminiErr);
+      } catch (aiErr) {
+        console.error('AI Vision processing error:', aiErr);
         return res.status(500).json({
           success: false,
-          error: `Gemini Vision API error: ${geminiErr.message}. You can disable the Gemini toggle to use local offline OCR.`
+          error: `AI Vision processing error: ${aiErr.message}. You can disable the AI Vision toggle to use local offline OCR.`
         });
       }
     }

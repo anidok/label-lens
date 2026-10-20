@@ -167,26 +167,26 @@ function setupEventListeners() {
   function updateToggleUI(isGemini) {
     if (isGemini) {
       if (engineBadge) {
-        engineBadge.textContent = '⚡ GEMINI FLASH AI (Active)';
+        engineBadge.textContent = '⚡ AI VISION (Active)';
         engineBadge.style.background = '#e0e7ff';
         engineBadge.style.color = '#4338ca';
         engineBadge.style.border = '1px solid #c7d2fe';
       }
       if (engineDesc) {
-        engineDesc.textContent = 'Multimodal AI vision enabled: High-accuracy extraction across curved, glossy packaging & micro-fonts (configured via backend .env).';
+        engineDesc.textContent = 'Multimodal AI Vision enabled: High-accuracy extraction across curved, glossy packaging & micro-fonts.';
       }
       if (dropzoneHint) {
-        dropzoneHint.textContent = 'Multimodal AI Vision with Google Gemini Flash — high-precision extraction for curved/glare labels';
+        dropzoneHint.textContent = 'Advanced AI Vision — high-precision extraction for curved/glare labels';
       }
     } else {
       if (engineBadge) {
-        engineBadge.textContent = 'OFFLINE (Tesseract.js)';
+        engineBadge.textContent = 'OFFLINE (OCR)';
         engineBadge.style.background = '#f1f5f9';
         engineBadge.style.color = '#475569';
         engineBadge.style.border = '1px solid #cbd5e1';
       }
       if (engineDesc) {
-        engineDesc.textContent = 'Toggle OFF for 100% offline local OCR (no cloud, private). Toggle ON for multimodal AI (best for curved packaging, glare, & fine fonts).';
+        engineDesc.textContent = 'Toggle OFF for local offline OCR (fast, on-device). Toggle ON for Advanced AI Vision (best for curved packaging, glare, & fine fonts).';
       }
       if (dropzoneHint) {
         dropzoneHint.textContent = 'Processed locally using Sharp & Tesseract.js (no cloud upload, 100% private)';
@@ -252,7 +252,7 @@ function setupEventListeners() {
 
     let timer1, timer2;
     if (isGemini) {
-      updateProgress(25, 'Step 1/3: Connecting to Google Gemini Flash Vision...');
+      updateProgress(25, 'Step 1/3: Initializing AI Vision pipeline...');
       timer1 = setTimeout(() => {
         updateProgress(65, 'Step 2/3: Multimodal AI reading nutrition table & ingredients list...');
       }, 700);
@@ -290,7 +290,7 @@ function setupEventListeners() {
           statusMsg.style.display = 'block';
 
           if (data.engine_used === 'gemini') {
-            statusMsg.innerHTML = `<span style="color: var(--primary); font-weight: 600;">⚡ Analyzed "${file.name}" via Google Gemini Flash AI Vision.</span>`;
+            statusMsg.innerHTML = `<span style="color: var(--primary); font-weight: 600;">⚡ Analyzed "${file.name}" via Advanced AI Vision.</span>`;
           } else {
             statusMsg.innerHTML = `<span style="color: var(--success); font-weight: 600;">✓ Scanned "${file.name}" locally via Tesseract.js (Confidence: ${Math.round(data.confidence || 88)}%).</span>`;
           }
@@ -425,7 +425,7 @@ function displayAnalysisResult(product) {
   if (resultEngineBadge) {
     if (product.engine_used === 'gemini') {
       resultEngineBadge.style.display = 'inline-block';
-      resultEngineBadge.textContent = '⚡ Gemini Flash Vision';
+      resultEngineBadge.textContent = '⚡ AI Vision';
       resultEngineBadge.style.background = '#e0e7ff';
       resultEngineBadge.style.color = '#4338ca';
       resultEngineBadge.style.border = '1px solid #c7d2fe';
