@@ -41,37 +41,33 @@ export function parseNutritionText(rawText) {
     return isNaN(val) ? null : val;
   };
 
-  const extractNumbersFromLine = (line) => {
-    const matches = line.match(/(?:<|less\s*than)?\s*(\d+(?:[.,]\d+)?)\s*(?:kcal|kj|g|mg|%)?/gi) || [];
-    const nums = [];
-    for (const m of matches) {
-      const isLessThan = /<|less/i.test(m);
-      const val = parseNumber(m);
-      if (val !== null) {
-        nums.push(isLessThan ? Math.max(0.5, val * 0.5) : val);
-      }
+  // Helper to normalize faint decimal points (e.g. 97g fat in a single serve -> 9.7g, 358g sugar -> 3.58g)
+  const sanitizeGrams = (val, maxPlausible = 50) => {
+    if (val === null) return null;
+    if (val > maxPlausible && val < 100) {
+      return parseFloat((val / 10).toFixed(1)); // 97 -> 9.7
     }
-    return nums;
+    if (val >= 100 && val < 1000) {
+      return parseFloat((val / 100).toFixed(2)); // 358 -> 3.58
+    }
+    return val;
   };
 
   // 1. Energy (kcal or kJ or Calories)
   for (const line of lines) {
-    if (/calories|energy|caloric\s*value/i.test(line) && !/from\s*fat/i.test(line)) {
-      const nums = extractNumbersFromLine(line);
-      const kcals = nums.filter(n => n >= 20 && n <= 1000);
-      if (kcals.length > 0) {
-        parsed.energy_kcal = Math.max(...kcals);
-        break; // Stop immediately once valid kcal line is found
-      }
-      const kjs = nums.filter(n => n > 1000);
-      if (kjs.length > 0 && parsed.energy_kcal === null) {
-        parsed.energy_kcal = Math.round(Math.max(...kjs) / 4.184);
-        break;
+    if (/(?:calories|energy|caloric\s*value)/i.test(line) && !/from\s*fat/i.test(line)) {
+      const match = line.match(/(?:energy\s*kcal|calories|energy)[^\d\n]*?(\d+(?:[.,]\d+)?)\s*(?:kcal)?/i);
+      if (match) {
+        const val = parseNumber(match[1]);
+        if (val && val >= 20 && val <= 1000) {
+          parsed.energy_kcal = val;
+          break;
+        }
       }
     }
   }
 
-  // Fallback for Calories if line didn't match
+  // Fallback for Calories
   if (parsed.energy_kcal === null) {
     const calMatch = cleanText.match(/(?:calories|energy)[^\d\n]*?(\d+(?:[.,]\d+)?)/i);
     if (calMatch) {
@@ -83,80 +79,59 @@ export function parseNutritionText(rawText) {
   // 2. Total Fat
   for (const line of lines) {
     if (/total\s*fa[it]|total\s*lipid/i.test(line) && !/saturated/i.test(line)) {
-      const nums = extractNumbersFromLine(line);
-      const fatGrams = nums.filter(n => n <= 100);
-      if (fatGrams.length > 0) {
-        parsed.total_fat_g = fatGrams.length > 1 ? Math.max(...fatGrams) : fatGrams[0];
+      const match = line.match(/total\s*fa[it][^\d\n]*?(\d+(?:[.,]\d+)?)\s*g?/i);
+      if (match) {
+        let val = parseNumber(match[1]);
+        val = sanitizeGrams(val, 60);
+        parsed.total_fat_g = val;
         break;
       }
     }
   }
-  if (parsed.total_fat_g === null) {
-    const fatMatch = cleanText.match(/total\s*fa[it][^\d\n]*?(\d+(?:[.,]\d+)?)\s*g?/i);
-    if (fatMatch) parsed.total_fat_g = parseNumber(fatMatch[1]);
-  }
 
-  // 3. Saturated Fat
+  // 3. Saturated Fat (including Indian acronym SAFA, S4FA, S4k4)
   for (const line of lines) {
-    if (/satura[tl]ed\s*fa[it]|sat\s*fa[it]|saturates/i.test(line)) {
-      const nums = extractNumbersFromLine(line);
-      const satGrams = nums.filter(n => n <= 100);
-      if (satGrams.length > 0) {
-        parsed.saturated_fat_g = satGrams.length > 1 ? Math.max(...satGrams) : satGrams[0];
+    if (/satura[tl]ed\s*fa[it]|sat\s*fa[it]|saturates|\bsafa\b|\bs4fa\b|\bs4k4\b/i.test(line)) {
+      const match = line.match(/(?:satura[tl]ed\s*fa[it]|sat\s*fa[it]|safa|s4fa|s4k4)[^\d\n]*?(\d+(?:[.,]\d+)?)\s*(?:g|9)?/i);
+      if (match) {
+        let val = parseNumber(match[1]);
+        val = sanitizeGrams(val, 40);
+        parsed.saturated_fat_g = val;
         break;
       }
     }
   }
-  if (parsed.saturated_fat_g === null) {
-    const satMatch = cleanText.match(/(?:satura[tl]ed\s*fa[it]|sat\s*fa[it])[^\d\n]*?(\d+(?:[.,]\d+)?)\s*(?:g|9)?/i);
-    if (satMatch) parsed.saturated_fat_g = parseNumber(satMatch[1]);
-  }
 
-  // 4. Total Sugars & Added Sugars
+  // 4. Total Sugars
   for (const line of lines) {
     if (/total\s*sugars?|sugars?/i.test(line) && !/added/i.test(line)) {
       const isLessThan = /less\s*than|</i.test(line);
-      const nums = extractNumbersFromLine(line);
-      const sugGrams = nums.filter(n => n <= 100);
-      if (sugGrams.length > 0) {
-        parsed.total_sugars_g = isLessThan ? 0.5 : (sugGrams.length > 1 ? Math.max(...sugGrams) : sugGrams[0]);
+      const match = line.match(/(?:total\s*sugars?|sugars?)[^\d\n]*?(\d+(?:[.,]\d+)?)\s*g?/i);
+      if (match) {
+        let val = parseNumber(match[1]);
+        val = sanitizeGrams(val, 70);
+        parsed.total_sugars_g = isLessThan ? 0.5 : val;
         break;
       }
-    }
-  }
-  if (parsed.total_sugars_g === null) {
-    const sugMatch = cleanText.match(/(?:total\s*sugars?|sugars?)[^\d\n]*?(?:less\s*than|<)?\s*(\d+(?:[.,]\d+)?)\s*g?/i);
-    if (sugMatch) {
-      const isLessThan = /less\s*than|</i.test(sugMatch[0]);
-      const val = parseNumber(sugMatch[1]);
-      parsed.total_sugars_g = isLessThan ? 0.5 : val;
     }
   }
 
   // Added Sugars
-  const addedSugarMatch = cleanText.match(/(?:added\s*sugars?)[^\d\n]*?(\d+(?:[.,]\d+)?)\s*g?/i);
+  const addedSugarMatch = cleanText.match(/(?:added\s*sugars?)[^\d\n]*?(\d+(?:[.,]\d+)?)\s*(?:g|gm)?/i);
   if (addedSugarMatch) parsed.added_sugars_g = parseNumber(addedSugarMatch[1]);
 
   // 5. Sodium & Salt
   for (const line of lines) {
     if (/sodium/i.test(line)) {
-      const nums = extractNumbersFromLine(line);
-      if (nums.length > 0) {
-        const sods = nums.filter(n => n >= 5);
-        if (sods.length > 0) {
-          parsed.sodium_mg = sods.length > 1 ? Math.max(...sods) : sods[0];
+      const match = line.match(/sodium[^\d\n]*?(\d+(?:[.,]\d+)?)\s*(?:mg)?/i);
+      if (match) {
+        let val = parseNumber(match[1]);
+        if (val !== null) {
+          // If < 10 and no mg specified, might be grams
+          if (val < 10 && !line.includes('mg')) val = val * 1000;
+          parsed.sodium_mg = val;
           break;
         }
-      }
-    }
-  }
-  if (parsed.sodium_mg === null) {
-    const sodMatch = cleanText.match(/sodium[^\d\n]*?(\d+(?:[.,]\d+)?)\s*(?:mg)?/i);
-    if (sodMatch) {
-      let val = parseNumber(sodMatch[1]);
-      if (val !== null) {
-        if (val < 10 && !cleanText.includes('mg')) val = val * 1000;
-        parsed.sodium_mg = val;
       }
     }
   }
@@ -176,11 +151,12 @@ export function parseNutritionText(rawText) {
 
   // 6. Protein
   for (const line of lines) {
-    if (/protein/i.test(line)) {
-      const nums = extractNumbersFromLine(line);
-      const prot = nums.filter(n => n <= 100);
-      if (prot.length > 0) {
-        parsed.protein_g = prot.length > 1 ? Math.max(...prot) : prot[0];
+    if (/protein/i.test(line) && !/blend|isolate/i.test(line)) {
+      const match = line.match(/protein[^\d\n]*?(\d+(?:[.,]\d+)?)\s*g/i);
+      if (match) {
+        let val = parseNumber(match[1]);
+        val = sanitizeGrams(val, 50);
+        parsed.protein_g = val;
         break;
       }
     }
@@ -189,10 +165,11 @@ export function parseNutritionText(rawText) {
   // 7. Dietary Fibre
   for (const line of lines) {
     if (/fib(?:re|er)/i.test(line)) {
-      const nums = extractNumbersFromLine(line);
-      const fib = nums.filter(n => n <= 100);
-      if (fib.length > 0) {
-        parsed.dietary_fibre_g = fib.length > 1 ? Math.max(...fib) : fib[0];
+      const match = line.match(/fib(?:re|er)[^\d\n]*?(\d+(?:[.,]\d+)?)\s*g/i);
+      if (match) {
+        let val = parseNumber(match[1]);
+        val = sanitizeGrams(val, 40);
+        parsed.dietary_fibre_g = val;
         break;
       }
     }
@@ -201,10 +178,11 @@ export function parseNutritionText(rawText) {
   // 8. Carbohydrates
   for (const line of lines) {
     if (/carbohydrates?|total\s*carb/i.test(line)) {
-      const nums = extractNumbersFromLine(line);
-      const carb = nums.filter(n => n <= 100);
-      if (carb.length > 0) {
-        parsed.carbohydrate_g = carb.length > 1 ? Math.max(...carb) : carb[0];
+      const match = line.match(/(?:carbohydrates?|total\s*carb)[^\d\n]*?(\d+(?:[.,]\d+)?)\s*g/i);
+      if (match) {
+        let val = parseNumber(match[1]);
+        val = sanitizeGrams(val, 100);
+        parsed.carbohydrate_g = val;
         break;
       }
     }
@@ -215,7 +193,7 @@ export function parseNutritionText(rawText) {
   if (ingredientsMatch) {
     parsed.ingredients_text = ingredientsMatch[1].replace(/\n+/g, ' ').trim();
   } else {
-    const foodWords = ['peanut', 'peanuts', 'potato', 'potatoes', 'wheat', 'oil', 'salt', 'sugar', 'maida', 'milk'];
+    const foodWords = ['peanut', 'peanuts', 'potato', 'potatoes', 'wheat', 'oil', 'salt', 'sugar', 'maida', 'milk', 'protein'];
     const matchedWords = foodWords.filter(w => new RegExp(`\\b${w}\\b`, 'i').test(cleanText));
     if (matchedWords.length >= 2) {
       parsed.ingredients_text = cleanText;
@@ -223,7 +201,7 @@ export function parseNutritionText(rawText) {
   }
 
   // Serving Basis
-  const servingMatch = cleanText.match(/(?:per\s*100\s*(?:g|ml)|serving\s*size[^\n]+|per\s*serve[^\n]*)/i);
+  const servingMatch = cleanText.match(/(?:per\s*100\s*(?:g|ml)|serving\s*size[^\n]+|per\s*40\s*(?:gm|g)|per\s*serve[^\n]*)/i);
   if (servingMatch) {
     parsed.serving_size = servingMatch[0].trim();
   } else {

@@ -88,7 +88,7 @@ app.post('/api/analyze-text', (req, res) => {
   }
 });
 
-// 4. Optical Character Recognition (OCR) on Image with Sharp Image Preprocessing
+// 4. Optical Character Recognition (OCR) on Image with Multi-Angle Auto-Orientation
 app.post('/api/analyze-image', upload.single('label_image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -97,32 +97,58 @@ app.post('/api/analyze-image', upload.single('label_image'), async (req, res) =>
 
     console.log(`Processing OCR for file: ${req.file.originalname} (${req.file.size} bytes)`);
 
-    // Preprocessing with Sharp: Upscale low-res images, grayscale, normalize contrast, sharpen
     const metadata = await sharp(req.file.buffer).metadata();
-    let preprocessedBuffer = req.file.buffer;
+    const targetWidth = Math.max(1600, Math.min(2600, (metadata.width || 800) * 2.5));
 
-    const targetWidth = Math.max(1500, Math.min(2600, (metadata.width || 800) * 2.5));
-    preprocessedBuffer = await sharp(req.file.buffer)
-      .resize({ width: Math.round(targetWidth), kernel: 'lanczos3' })
-      .grayscale()
-      .normalise()
-      .sharpen()
-      .toBuffer();
-
-    // Run Tesseract OCR
     const worker = await createWorker('eng');
-    const ret = await worker.recognize(preprocessedBuffer);
-    const ocrText = ret.data.text;
+
+    const recognizeAtAngle = async (angle) => {
+      const buffer = await sharp(req.file.buffer)
+        .rotate(angle)
+        .resize({ width: Math.round(targetWidth), kernel: 'lanczos3' })
+        .grayscale()
+        .normalise()
+        .sharpen()
+        .toBuffer();
+      const ret = await worker.recognize(buffer);
+      const text = ret.data.text || '';
+      const keywords = ['energy', 'calories', 'protein', 'fat', 'sugar', 'sodium', 'safa', 'carb', 'ingredients'];
+      const score = keywords.reduce((acc, kw) => acc + (new RegExp(kw, 'i').test(text) ? 1 : 0), 0);
+      return { angle, score, text, confidence: ret.data.confidence };
+    };
+
+    // 1. Try 0° first
+    let best = await recognizeAtAngle(0);
+
+    // 2. If weak detection (< 2 keywords), test 270° (sideways vertical bar) and 90°
+    if (best.score < 2) {
+      console.log('Low keyword detection at 0°. Testing 270° orientation...');
+      const r270 = await recognizeAtAngle(270);
+      if (r270.score > best.score) {
+        best = r270;
+      }
+      if (best.score < 2) {
+        console.log('Testing 90° orientation...');
+        const r90 = await recognizeAtAngle(90);
+        if (r90.score > best.score) {
+          best = r90;
+        }
+      }
+    }
+
     await worker.terminate();
 
+    console.log(`Selected orientation: ${best.angle}° with keyword score: ${best.score}`);
+
     // Parse the extracted text
-    const parsedNutrients = parseNutritionText(ocrText);
+    const parsedNutrients = parseNutritionText(best.text);
     const evaluation = evaluateFoodProduct(parsedNutrients);
 
     res.json({
       success: true,
-      raw_ocr_text: ocrText,
-      confidence: ret.data.confidence,
+      raw_ocr_text: best.text,
+      orientation_angle: best.angle,
+      confidence: best.confidence,
       parsed_nutrients: parsedNutrients,
       evaluation
     });
