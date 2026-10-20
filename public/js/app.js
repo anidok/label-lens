@@ -155,10 +155,14 @@ function setupEventListeners() {
     }
   });
 
-  // Dropzone Image Upload
+  // Dropzone Image Upload with Animated Multi-Stage Progress Bar
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('image-input');
-  const ocrStatus = document.getElementById('ocr-status');
+  const loadingBox = document.getElementById('ocr-loading-box');
+  const progressBar = document.getElementById('ocr-progress-bar');
+  const pctText = document.getElementById('ocr-pct-text');
+  const substepText = document.getElementById('ocr-substep-text');
+  const statusMsg = document.getElementById('ocr-status-message');
 
   dropzone.addEventListener('click', () => fileInput.click());
 
@@ -186,8 +190,25 @@ function setupEventListeners() {
   });
 
   async function handleImageUpload(file) {
-    ocrStatus.style.display = 'block';
-    ocrStatus.innerHTML = `<span class="loading-spinner"></span> Performing OCR text extraction via Tesseract.js (this may take a few seconds)...`;
+    statusMsg.style.display = 'none';
+    loadingBox.style.display = 'block';
+
+    const updateProgress = (pct, stepMsg) => {
+      progressBar.style.width = `${pct}%`;
+      pctText.textContent = `${pct}%`;
+      if (stepMsg) substepText.textContent = stepMsg;
+    };
+
+    updateProgress(20, 'Step 1/3: Upscaling resolution & normalising contrast with Sharp...');
+
+    // Timed stages to give realistic visual progression while server processes
+    const timer1 = setTimeout(() => {
+      updateProgress(55, 'Step 2/3: Running Tesseract.js neural OCR text recognition...');
+    }, 600);
+
+    const timer2 = setTimeout(() => {
+      updateProgress(80, 'Step 3/3: Evaluating parsed values against FSSAI draft criteria...');
+    }, 1800);
 
     const formData = new FormData();
     formData.append('label_image', file);
@@ -199,24 +220,41 @@ function setupEventListeners() {
       });
       const data = await res.json();
 
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+
       if (data.success) {
-        ocrStatus.innerHTML = `✓ OCR Completed (Confidence: ${Math.round(data.confidence || 90)}%). Results parsed below.`;
-        const scannedProduct = {
-          id: `ocr-${Date.now()}`,
-          name: `Scanned Label (${file.name})`,
-          brand: 'Uploaded Image',
-          category: 'Food Product',
-          nutrients: data.parsed_nutrients,
-          evaluation: data.evaluation
-        };
-        state.comparisonPool.unshift(scannedProduct);
-        populateCompareDropdowns();
-        displayAnalysisResult(scannedProduct);
+        updateProgress(100, '✓ Complete! Rendering analysis...');
+        setTimeout(() => {
+          loadingBox.style.display = 'none';
+          statusMsg.style.display = 'block';
+          statusMsg.innerHTML = `<span style="color: var(--success); font-weight: 600;">✓ Scanned "${file.name}" successfully (OCR Confidence: ${Math.round(data.confidence || 88)}%).</span>`;
+
+          const scannedProduct = {
+            id: `ocr-${Date.now()}`,
+            name: `Scanned Label (${file.name})`,
+            brand: 'Uploaded Image',
+            category: 'Food Product',
+            nutrients: data.parsed_nutrients,
+            evaluation: data.evaluation
+          };
+          state.comparisonPool.unshift(scannedProduct);
+          populateCompareDropdowns();
+          displayAnalysisResult(scannedProduct);
+        }, 400);
       } else {
-        ocrStatus.innerHTML = `<span style="color: var(--danger);">Failed: ${data.error}</span>`;
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        loadingBox.style.display = 'none';
+        statusMsg.style.display = 'block';
+        statusMsg.innerHTML = `<span style="color: var(--danger); font-weight: 600;">Failed: ${data.error}</span>`;
       }
     } catch (err) {
-      ocrStatus.innerHTML = `<span style="color: var(--danger);">OCR processing error: ${err.message}</span>`;
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      loadingBox.style.display = 'none';
+      statusMsg.style.display = 'block';
+      statusMsg.innerHTML = `<span style="color: var(--danger); font-weight: 600;">OCR processing error: ${err.message}</span>`;
     }
   }
 

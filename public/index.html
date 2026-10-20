@@ -76,10 +76,29 @@
             <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📸</div>
             <p style="font-weight: 600; color: var(--neutral-900);">Click or drag & drop a photo of a nutrition table</p>
             <p style="font-size: 0.82rem; color: var(--neutral-600); margin-top: 0.25rem;">
-              Processed locally using Tesseract.js (no cloud upload, 100% private)
+              Processed locally using Sharp & Tesseract.js (no cloud upload, 100% private)
             </p>
           </div>
-          <div id="ocr-status" style="margin-top: 0.75rem; font-size: 0.88rem; display: none;"></div>
+
+          <!-- Enhanced Loading Bar & Multi-Stage Status -->
+          <div id="ocr-loading-box" style="display: none; margin-top: 1rem; padding: 1.25rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius); box-shadow: var(--shadow-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span id="ocr-step-text" style="font-weight: 700; font-size: 0.92rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem;">
+                <span class="loading-spinner" style="border-top-color: var(--primary); border-color: rgba(79, 70, 229, 0.2); width: 18px; height: 18px;"></span>
+                <span>Processing Image with AI Pipeline...</span>
+              </span>
+              <span id="ocr-pct-text" style="font-size: 0.85rem; font-weight: 800; color: var(--primary);">15%</span>
+            </div>
+            <div style="width: 100%; height: 10px; background: #e2e8f0; border-radius: 9999px; overflow: hidden; margin: 0.5rem 0;">
+              <div id="ocr-progress-bar" style="width: 15%; height: 100%; background: linear-gradient(90deg, #4f46e5, #06b6d4); transition: width 0.4s ease; border-radius: 9999px;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: var(--neutral-600); margin-top: 0.35rem;">
+              <span id="ocr-substep-text">Step 1/3: Upscaling resolution & normalising contrast with Sharp...</span>
+              <span>Please wait ~2-3s</span>
+            </div>
+          </div>
+
+          <div id="ocr-status-message" style="margin-top: 0.75rem; font-size: 0.88rem; display: none;"></div>
         </div>
 
         <!-- 3. Paste Text Fallback -->
