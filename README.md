@@ -90,6 +90,62 @@ Label Lens introduces the **Cumulative Combo Engine** ([`engine/cumulative.js`](
 
 ---
 
+## 🤖 Rule Engine vs. ML Classifier: How Uploaded Images Are Processed
+
+When a consumer or evaluator uploads a food packaging photo, Label Lens processes the image through a **Two-Stage Neurosymbolic Architecture**:
+
+```
+[ Uploaded Label Photo (e.g. Britannia Good Day / Amul Milk / Maggi) ]
+                               │
+                               ▼
+        ┌────────────────────────────────────────────────────────┐
+        │       STAGE 1: Vision Perception (Computer Vision)     │
+        │   • Multimodal AI Vision (Gemini) OR Local OCR (Sharp) │
+        └──────────────────────────────┬─────────────────────────┘
+                                       │ Reads text & extracts numbers:
+                                       │ [Energy, Sugars, Sat Fat, Sodium, Fibre, Protein]
+                                       ▼
+        ┌────────────────────────────────────────────────────────┐
+        │      STAGE 2: Evaluation Engine (Interactive Toggle)   │
+        └──────────────┬──────────────────────────┬──────────────┘
+                       │                          │
+        Toggle: [ ⚖️ Rule Engine ]         Toggle: [ 🤖 ML Classifier ]
+                       │                          │
+                       ▼                          ▼
+        ┌──────────────────────────────┐   ┌──────────────────────────────┐
+        │  FSSAI 2022 XAI Rule Engine  │   │   Supervised ML Classifier   │
+        ├──────────────────────────────┤   ├──────────────────────────────┤
+        │ • Schedule V point formula   │   │ • 9-dimensional feature      │
+        │ • 100% deterministic rules   │   │   vector x = [sugar%, ...]   │
+        │ • Exact legal clause audit   │   │ • Log-odds: z = w0 + Σ wi xi │
+        │ • FSSAI INR Stars (0.5 - 5)  │   │ • Sigmoid: P(HFSS) = 1/(1+e-z│
+        │ • Statutory category rules   │   │ • Feature log-odds impact    │
+        │   (exempts milk lactose)     │   │ • Decision tree cross-check  │
+        └──────────────────────────────┘   └──────────────────────────────┘
+```
+
+### 1. What the ML Classifier Does With the Uploaded Image
+1. **Perception First:** The Vision Layer extracts the quantitative nutrient numbers printed on the package ($kcal$, $g\text{ sugars}$, $g\text{ sat fat}$, $mg\text{ sodium}$, $g\text{ fibre}$, $g\text{ protein}$).
+2. **Feature Vector Formulation:** These extracted values are converted into a 9-dimensional mathematical feature vector:
+   $$\mathbf{x} = \Big[\text{Sugar\%}, \text{SatFat\%}, \text{Sodium Density}, \text{Energy}, \text{Sugars(g)}, \text{SatFat(g)}, \text{Sodium(mg)}, \text{Protein(g)}, \text{Fibre(g)}\Big]$$
+3. **Statistical Inference:** The feature vector is evaluated using model weights ($w$) trained directly on the curated 50-product Indian Packaged Food dataset ([`data/benchmark_50_products.json`](file:///Users/aniket/go/src/source.golabs.io/gopay/workspace/label-lens/data/benchmark_50_products.json)):
+   $$z = w_0 + \sum_{i=1}^{9} w_i x_i, \quad P(\text{HFSS} \mid \text{Image Nutrients}) = \frac{1}{1 + e^{-z}}$$
+4. **Live ML Outputs Displayed in the UI:**
+   * **Sigmoid Probability Score:** e.g. $98.4\%$ probability of being High Fat, Sugar, Salt (HFSS) with confidence meter.
+   * **Feature Sensitivity Breakdown (Log-Odds Impact):** Shows how much each nutrient extracted from the image pushed the score toward risk (`⚠️ Risk Push`) or acted as a protective buffer (`✓ Protective Factor`).
+   * **Decision Tree Cross-Check:** Displays the exact conditional tree split (e.g. $\text{Sodium Density} \le 0.16\text{ mg/kcal} \land \text{SatFat\%} \le 10.6\% \implies \text{Non-HFSS}$).
+
+### 2. Academic Justification: Why Not Classify Raw Image Pixels (CNN / ResNet)?
+A common defense examiner question is: *"Why not train an end-to-end Convolutional Neural Network (CNN) directly on packaging photos?"*
+
+| Dimension | End-to-End Raw Pixel CNN | Label Lens Two-Stage Architecture |
+| :--- | :--- | :--- |
+| **Packaging Redesigns** | **Fragile.** Brands frequently update package artwork, launch festive/Diwali editions, or change font styles. Pixel CNNs fail when the visual appearance changes, even if the food recipe is identical. | **Robust.** As long as the nutrition information panel is readable, the analysis is completely invariant to package re-skins. |
+| **Explainability (XAI)** | **Opaque black box.** A CNN cannot explain to a diabetic consumer whether the food is dangerous due to 25g of added sugar or 800mg of sodium. | **Fully transparent.** Cites exact grams, percentages, regulatory limits, and mathematical point deductions. |
+| **FSSAI Regulatory Standing** | **Legally inadmissible.** Indian statutory food safety standards require metric verification against Schedule V limits (per 100g/ml). No food safety officer can prosecute based on deep latent pixel activations. | **Statutorily compliant.** Grounded directly in the published FSSAI 2022 Draft Gazette notifications. |
+
+---
+
 ## 🎯 How Evaluator Feedback is Addressed
 
 | Evaluator Feedback Item | Technical & Academic Solution in Label Lens |
