@@ -4,6 +4,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import sharp from 'sharp';
 import { createWorker } from 'tesseract.js';
 
 import { parseNutritionText } from './engine/parser.js';
@@ -24,7 +25,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Configure Multer for in-memory image handling
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 15 * 1024 * 1024 } // 15MB limit
 });
 
 // Load presets
@@ -51,7 +52,7 @@ app.get('/api/presets', (req, res) => {
   res.json({ presets: enriched });
 });
 
-// 3. Analyze Pasted or Form-based Text
+// 3. Analyze Pasted or Form-based Text / Manual Recalculation
 app.post('/api/analyze-text', (req, res) => {
   try {
     const { text, manualNutrients } = req.body;
@@ -59,7 +60,14 @@ app.post('/api/analyze-text', (req, res) => {
     let parsedNutrients = {};
     if (manualNutrients) {
       parsedNutrients = {
-        ...manualNutrients,
+        energy_kcal: manualNutrients.energy_kcal !== undefined && manualNutrients.energy_kcal !== '' ? parseFloat(manualNutrients.energy_kcal) : null,
+        total_sugars_g: manualNutrients.total_sugars_g !== undefined && manualNutrients.total_sugars_g !== '' ? parseFloat(manualNutrients.total_sugars_g) : null,
+        saturated_fat_g: manualNutrients.saturated_fat_g !== undefined && manualNutrients.saturated_fat_g !== '' ? parseFloat(manualNutrients.saturated_fat_g) : null,
+        total_fat_g: manualNutrients.total_fat_g !== undefined && manualNutrients.total_fat_g !== '' ? parseFloat(manualNutrients.total_fat_g) : null,
+        sodium_mg: manualNutrients.sodium_mg !== undefined && manualNutrients.sodium_mg !== '' ? parseFloat(manualNutrients.sodium_mg) : null,
+        protein_g: manualNutrients.protein_g !== undefined && manualNutrients.protein_g !== '' ? parseFloat(manualNutrients.protein_g) : null,
+        dietary_fibre_g: manualNutrients.dietary_fibre_g !== undefined && manualNutrients.dietary_fibre_g !== '' ? parseFloat(manualNutrients.dietary_fibre_g) : null,
+        serving_size: manualNutrients.serving_size || 'per 100g',
         ingredients_text: manualNutrients.ingredients_text || text || ''
       };
     } else {
@@ -80,7 +88,7 @@ app.post('/api/analyze-text', (req, res) => {
   }
 });
 
-// 4. Optical Character Recognition (OCR) on Image
+// 4. Optical Character Recognition (OCR) on Image with Sharp Image Preprocessing
 app.post('/api/analyze-image', upload.single('label_image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -89,9 +97,21 @@ app.post('/api/analyze-image', upload.single('label_image'), async (req, res) =>
 
     console.log(`Processing OCR for file: ${req.file.originalname} (${req.file.size} bytes)`);
 
-    // Run Tesseract OCR on memory buffer
+    // Preprocessing with Sharp: Upscale low-res images, grayscale, normalize contrast, sharpen
+    const metadata = await sharp(req.file.buffer).metadata();
+    let preprocessedBuffer = req.file.buffer;
+
+    const targetWidth = Math.max(1500, Math.min(2600, (metadata.width || 800) * 2.5));
+    preprocessedBuffer = await sharp(req.file.buffer)
+      .resize({ width: Math.round(targetWidth), kernel: 'lanczos3' })
+      .grayscale()
+      .normalise()
+      .sharpen()
+      .toBuffer();
+
+    // Run Tesseract OCR
     const worker = await createWorker('eng');
-    const ret = await worker.recognize(req.file.buffer);
+    const ret = await worker.recognize(preprocessedBuffer);
     const ocrText = ret.data.text;
     await worker.terminate();
 
@@ -122,7 +142,7 @@ app.post('/api/compare', (req, res) => {
 
     const compared = products.map((prod, idx) => {
       let evaluation = prod.evaluation;
-      if (!evaluation) {
+      if (!evaluation || evaluation.is_incomplete) {
         const parsed = prod.nutrients ? { ...prod.nutrients, ingredients_text: prod.ingredients || '' } : parseNutritionText(prod.text || '');
         evaluation = evaluateFoodProduct(parsed);
       }
@@ -137,10 +157,13 @@ app.post('/api/compare', (req, res) => {
 
     // Determine "Better Choice" recommendation
     // Rank by Suitability Score desc, INR Stars desc, then least HFSS flags
-    const sorted = [...compared].sort((a, b) => {
-      if (b.evaluation.score !== a.evaluation.score) {
-        return b.evaluation.score - a.evaluation.score;
-      }
+    const validProducts = compared.filter(p => p.evaluation && !p.evaluation.is_incomplete);
+    const poolToRank = validProducts.length > 0 ? validProducts : compared;
+
+    const sorted = [...poolToRank].sort((a, b) => {
+      const scoreA = a.evaluation.score || 0;
+      const scoreB = b.evaluation.score || 0;
+      if (scoreB !== scoreA) return scoreB - scoreA;
       return (b.evaluation.inr.inr_stars || 0) - (a.evaluation.inr.inr_stars || 0);
     });
 
@@ -187,8 +210,8 @@ app.post('/api/compare', (req, res) => {
       better_choice: {
         winner_id: bestProduct.id,
         winner_name: bestProduct.name,
-        score: bestProduct.evaluation.score,
-        inr_stars: bestProduct.evaluation.inr.inr_stars,
+        score: bestProduct.evaluation.score || 0,
+        inr_stars: bestProduct.evaluation.inr.inr_stars || 0,
         summary: `${bestProduct.name} is recommended as the nutritionally superior option in this comparison.`,
         key_reasons: comparisonNotes
       }

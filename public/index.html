@@ -100,13 +100,64 @@
 
         <!-- Product Identity Header -->
         <div class="card" style="margin-bottom: 1rem; background: var(--neutral-100); border-color: var(--neutral-300);">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
             <div>
               <h2 id="result-product-name" style="font-size: 1.3rem; font-weight: 700; color: var(--neutral-900);">Product Name</h2>
               <p id="result-product-meta" style="font-size: 0.85rem; color: var(--neutral-600);">Category • Serving Basis</p>
             </div>
-            <button class="btn btn-outline" id="btn-add-to-compare" style="font-size: 0.82rem; padding: 0.4rem 0.8rem;">
-              + Add to Comparison Workspace
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-outline" id="btn-toggle-edit" style="font-size: 0.82rem; padding: 0.4rem 0.8rem;">
+                ✏️ Edit Extracted Values
+              </button>
+              <button class="btn btn-outline" id="btn-add-to-compare" style="font-size: 0.82rem; padding: 0.4rem 0.8rem;">
+                + Add to Comparison
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Extracted Values Review & Edit Card -->
+        <div class="card" id="edit-values-card" style="border: 1px dashed var(--neutral-400); background: #fdfdfd; display: none;">
+          <div class="card-title" style="margin-bottom: 0.5rem;">
+            <span>✏️ Review & Adjust Extracted Values</span>
+            <span style="font-size: 0.78rem; font-weight: normal; color: var(--neutral-600);">Verify OCR outputs against package</span>
+          </div>
+          <p style="font-size: 0.82rem; color: var(--neutral-600); margin-bottom: 0.75rem;">
+            If image glare or small font caused any value to be missed or misread, adjust the numbers below and click <strong>Update Analysis</strong>.
+          </p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 700; color: var(--neutral-700);">Energy (kcal):</label>
+              <input type="number" id="edit-energy" style="width: 100%; padding: 0.4rem; border: 1px solid var(--neutral-300); border-radius: 4px; font-size: 0.88rem;" placeholder="e.g. 160">
+            </div>
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 700; color: var(--neutral-700);">Total Sugar (g):</label>
+              <input type="number" step="0.1" id="edit-sugar" style="width: 100%; padding: 0.4rem; border: 1px solid var(--neutral-300); border-radius: 4px; font-size: 0.88rem;" placeholder="e.g. 1.0">
+            </div>
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 700; color: var(--neutral-700);">Saturated Fat (g):</label>
+              <input type="number" step="0.1" id="edit-satfat" style="width: 100%; padding: 0.4rem; border: 1px solid var(--neutral-300); border-radius: 4px; font-size: 0.88rem;" placeholder="e.g. 1.5">
+            </div>
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 700; color: var(--neutral-700);">Sodium (mg):</label>
+              <input type="number" id="edit-sodium" style="width: 100%; padding: 0.4rem; border: 1px solid var(--neutral-300); border-radius: 4px; font-size: 0.88rem;" placeholder="e.g. 170">
+            </div>
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 700; color: var(--neutral-700);">Protein (g):</label>
+              <input type="number" step="0.1" id="edit-protein" style="width: 100%; padding: 0.4rem; border: 1px solid var(--neutral-300); border-radius: 4px; font-size: 0.88rem;" placeholder="e.g. 2.0">
+            </div>
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 700; color: var(--neutral-700);">Fibre (g):</label>
+              <input type="number" step="0.1" id="edit-fibre" style="width: 100%; padding: 0.4rem; border: 1px solid var(--neutral-300); border-radius: 4px; font-size: 0.88rem;" placeholder="e.g. 1.0">
+            </div>
+          </div>
+          <div style="margin-bottom: 0.75rem;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--neutral-700);">Ingredients Text (for allergens & additives):</label>
+            <textarea id="edit-ingredients" rows="2" style="width: 100%; padding: 0.4rem; border: 1px solid var(--neutral-300); border-radius: 4px; font-size: 0.82rem; font-family: monospace;" placeholder="Ingredients list..."></textarea>
+          </div>
+          <div style="text-align: right;">
+            <button class="btn btn-primary" id="btn-recalculate-values" style="font-size: 0.85rem; padding: 0.4rem 0.9rem;">
+              🔄 Update & Recalculate Analysis
             </button>
           </div>
         </div>

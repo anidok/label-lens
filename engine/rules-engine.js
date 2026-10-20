@@ -33,10 +33,15 @@ export function evaluateFoodProduct(parsedData) {
   } = parsedData;
 
   const reasoningTrace = [];
-  let score = fssaiRules.scoring.base_score;
   const deductions = [];
+
+  // Check if critical nutrition fields are missing
+  const hasCoreNutrients = (energy_kcal && energy_kcal > 0) && 
+    (total_sugars_g !== null || saturated_fat_g !== null || sodium_mg !== null);
+
   const hfssFlags = {
     is_hfss: false,
+    undetermined: !hasCoreNutrients,
     sugar_exceeded: false,
     sat_fat_exceeded: false,
     sodium_exceeded: false,
@@ -45,7 +50,9 @@ export function evaluateFoodProduct(parsedData) {
 
   const nutrientEvaluations = {};
 
-  // Rule A1: Total Sugar Evaluation
+  let score = fssaiRules.scoring.base_score;
+
+  // 1. Rule A1: Total Sugar Evaluation
   if (energy_kcal && energy_kcal > 0 && total_sugars_g !== null) {
     const sugarCalories = total_sugars_g * fssaiRules.conversion_factors.sugar_kcal_per_gram;
     const sugarEnergyPct = (sugarCalories / energy_kcal) * 100;
@@ -66,7 +73,7 @@ export function evaluateFoodProduct(parsedData) {
     } else if (sugarEnergyPct > moderateThreshold) {
       status = 'MODERATE';
       deduction = fssaiRules.scoring.deductions.moderate_threshold_per_nutrient;
-      explanation = `Sugar contributes ${sugarEnergyPct.toFixed(1)}% of energy, which is within the 10% limit but above the 5% moderate threshold.`;
+      explanation = `Sugar contributes ${sugarEnergyPct.toFixed(1)}% of energy, within the 10% limit but elevated (>5%).`;
     } else {
       explanation = `Sugar contributes ${sugarEnergyPct.toFixed(1)}% of energy, well within safe dietary guidelines (<5%).`;
     }
@@ -96,10 +103,25 @@ export function evaluateFoodProduct(parsedData) {
       finding: explanation
     });
   } else {
-    nutrientEvaluations.sugar = { status: 'UNKNOWN', explanation: 'Missing energy or sugar values.' };
+    nutrientEvaluations.sugar = { 
+      value_g: total_sugars_g,
+      energy_pct: null,
+      status: 'UNKNOWN', 
+      explanation: 'Sugar or energy value not declared/detected.' 
+    };
+    reasoningTrace.push({
+      step: 1,
+      name: 'FSSAI Sugar Energy Rule',
+      input: 'Not declared or unreadable',
+      calculated: 'Unknown',
+      criterion: '<= 10% energy',
+      status: 'UNKNOWN',
+      deduction: '0.0',
+      finding: 'Total sugar could not be extracted; verification needed.'
+    });
   }
 
-  // Rule A2: Saturated Fat Evaluation
+  // 2. Rule A2: Saturated Fat Evaluation
   if (energy_kcal && energy_kcal > 0 && saturated_fat_g !== null) {
     const satFatCalories = saturated_fat_g * fssaiRules.conversion_factors.saturated_fat_kcal_per_gram;
     const satFatEnergyPct = (satFatCalories / energy_kcal) * 100;
@@ -150,10 +172,25 @@ export function evaluateFoodProduct(parsedData) {
       finding: explanation
     });
   } else {
-    nutrientEvaluations.saturated_fat = { status: 'UNKNOWN', explanation: 'Missing energy or saturated fat values.' };
+    nutrientEvaluations.saturated_fat = { 
+      value_g: saturated_fat_g,
+      energy_pct: null,
+      status: 'UNKNOWN', 
+      explanation: 'Saturated fat or energy value not declared/detected.' 
+    };
+    reasoningTrace.push({
+      step: 2,
+      name: 'FSSAI Saturated Fat Energy Rule',
+      input: 'Not declared or unreadable',
+      calculated: 'Unknown',
+      criterion: '<= 10% energy',
+      status: 'UNKNOWN',
+      deduction: '0.0',
+      finding: 'Saturated fat could not be extracted; verification needed.'
+    });
   }
 
-  // Rule A3: Sodium / Salt Evaluation
+  // 3. Rule A3: Sodium Evaluation
   if (energy_kcal && energy_kcal > 0 && sodium_mg !== null) {
     const sodiumPerKcal = sodium_mg / energy_kcal;
     const threshold = fssaiRules.hfss_thresholds.sodium.limit;
@@ -202,7 +239,22 @@ export function evaluateFoodProduct(parsedData) {
       finding: explanation
     });
   } else {
-    nutrientEvaluations.sodium = { status: 'UNKNOWN', explanation: 'Missing energy or sodium values.' };
+    nutrientEvaluations.sodium = { 
+      value_mg: sodium_mg,
+      ratio_mg_per_kcal: null,
+      status: 'UNKNOWN', 
+      explanation: 'Sodium or energy value not declared/detected.' 
+    };
+    reasoningTrace.push({
+      step: 3,
+      name: 'FSSAI Sodium Density Rule',
+      input: 'Not declared or unreadable',
+      calculated: 'Unknown',
+      criterion: '<= 1.0 mg/kcal',
+      status: 'UNKNOWN',
+      deduction: '0.0',
+      finding: 'Sodium could not be extracted; verification needed.'
+    });
   }
 
   // HFSS Overall Compound Penalty
@@ -229,7 +281,6 @@ export function evaluateFoodProduct(parsedData) {
   for (const family of allergenData.families) {
     const matches = [];
     for (const kw of family.keywords) {
-      // Word boundary regex to prevent false substrings
       const regex = new RegExp(`\\b${kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
       if (regex.test(ingLower)) {
         matches.push(kw);
@@ -250,7 +301,7 @@ export function evaluateFoodProduct(parsedData) {
     reasoningTrace.push({
       step: 5,
       name: 'Indian Allergen Identification Rule',
-      input: `Ingredient declaration (${detectedAllergens.length} families identified)`,
+      input: `Ingredient text (${detectedAllergens.length} families identified)`,
       calculated: detectedAllergens.map(a => `${a.family_name} (${a.matched_terms.join(', ')})`).join('; '),
       criterion: 'Cross-check against Indian allergen taxonomy',
       status: 'ALERT',
@@ -268,7 +319,6 @@ export function evaluateFoodProduct(parsedData) {
     let matchedAlias = '';
 
     for (const alias of additive.aliases) {
-      // Match INS code or name
       const regex = new RegExp(`\\b(?:ins\\s*|e\\s*)?${alias.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
       if (regex.test(ingLower)) {
         matched = true;
@@ -298,7 +348,7 @@ export function evaluateFoodProduct(parsedData) {
     deductions.push({
       rule: 'Additives Watchlist',
       amount: additiveDeductionTotal,
-      reason: `Flagged ${flaggedAdditives.length} additives of concern (synthetic colours/preservatives/sweeteners).`
+      reason: `Flagged ${flaggedAdditives.length} additives of concern.`
     });
 
     reasoningTrace.push({
@@ -311,6 +361,29 @@ export function evaluateFoodProduct(parsedData) {
       deduction: `-${additiveDeductionTotal.toFixed(1)}`,
       finding: `Found ${flaggedAdditives.map(a => a.name).join(', ')}.`
     });
+  }
+
+  // Handle case where NO core nutrients were found at all
+  if (!hasCoreNutrients) {
+    return {
+      score: null,
+      score_label: "Incomplete Nutrition Data",
+      badge_style: "caution",
+      color_code: "#64748b",
+      is_incomplete: true,
+      hfss: {
+        is_hfss: false,
+        undetermined: true,
+        reasons: ["Essential nutrition table values (Energy, Sugar, Fat, Sodium) could not be detected from the image. Please verify or enter values below."]
+      },
+      nutrients: nutrientEvaluations,
+      inr: { inr_stars: null, final_score: null, breakdown: {} },
+      allergens: detectedAllergens,
+      additives: flaggedAdditives,
+      deductions: [],
+      reasoning_trace: reasoningTrace,
+      disclaimer: "Nutrition values could not be extracted automatically. Please verify or input the label values below."
+    };
   }
 
   // Floor score at 1.0 and round to nearest half point
@@ -334,6 +407,7 @@ export function evaluateFoodProduct(parsedData) {
     score_label: suitabilityLabel.label,
     badge_style: suitabilityLabel.badge,
     color_code: suitabilityLabel.color,
+    is_incomplete: false,
     hfss: hfssFlags,
     nutrients: nutrientEvaluations,
     inr: inrEvaluation,

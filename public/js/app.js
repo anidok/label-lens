@@ -256,11 +256,50 @@ function setupEventListeners() {
   // Add current product to compare
   document.getElementById('btn-add-to-compare').addEventListener('click', () => {
     if (!state.currentProduct) return;
-    // Switch to compare tab and pre-select current product
     const compareTabBtn = document.querySelector('.nav-tab-btn[data-tab="tab-compare"]');
     compareTabBtn.click();
     const sel1 = document.getElementById('compare-select-1');
     sel1.value = state.currentProduct.id;
+  });
+
+  // Toggle Edit Card
+  const btnToggleEdit = document.getElementById('btn-toggle-edit');
+  const editCard = document.getElementById('edit-values-card');
+  btnToggleEdit.addEventListener('click', () => {
+    editCard.style.display = editCard.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // Recalculate / Update Manual Values
+  document.getElementById('btn-recalculate-values').addEventListener('click', async () => {
+    const manualNutrients = {
+      energy_kcal: document.getElementById('edit-energy').value,
+      total_sugars_g: document.getElementById('edit-sugar').value,
+      saturated_fat_g: document.getElementById('edit-satfat').value,
+      sodium_mg: document.getElementById('edit-sodium').value,
+      protein_g: document.getElementById('edit-protein').value,
+      dietary_fibre_g: document.getElementById('edit-fibre').value,
+      ingredients_text: document.getElementById('edit-ingredients').value
+    };
+
+    try {
+      const res = await fetch('/api/analyze-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manualNutrients })
+      });
+      const data = await res.json();
+      if (data.success) {
+        state.currentProduct.nutrients = data.parsed_nutrients;
+        state.currentProduct.evaluation = data.evaluation;
+        populateCompareDropdowns();
+        displayAnalysisResult(state.currentProduct);
+        alert('✓ Analysis successfully recalculated with updated values!');
+      } else {
+        alert('Error: ' + data.error);
+      }
+    } catch (err) {
+      alert('Recalculation failed: ' + err.message);
+    }
   });
 }
 
@@ -279,33 +318,72 @@ function displayAnalysisResult(product) {
     `${product.brand || 'Brand'} • ${product.category || 'Food Category'} • Serving: ${product.nutrients.serving_size || 'per 100g'}`;
 
   const ev = product.evaluation;
+  const nut = product.nutrients || {};
+
+  // Populate Edit Fields
+  document.getElementById('edit-energy').value = nut.energy_kcal !== null && nut.energy_kcal !== undefined ? nut.energy_kcal : '';
+  document.getElementById('edit-sugar').value = nut.total_sugars_g !== null && nut.total_sugars_g !== undefined ? nut.total_sugars_g : '';
+  document.getElementById('edit-satfat').value = nut.saturated_fat_g !== null && nut.saturated_fat_g !== undefined ? nut.saturated_fat_g : '';
+  document.getElementById('edit-sodium').value = nut.sodium_mg !== null && nut.sodium_mg !== undefined ? nut.sodium_mg : '';
+  document.getElementById('edit-protein').value = nut.protein_g !== null && nut.protein_g !== undefined ? nut.protein_g : '';
+  document.getElementById('edit-fibre').value = nut.dietary_fibre_g !== null && nut.dietary_fibre_g !== undefined ? nut.dietary_fibre_g : '';
+  document.getElementById('edit-ingredients').value = nut.ingredients_text || '';
+
+  const editCard = document.getElementById('edit-values-card');
+
+  // Handle Incomplete OCR case
+  if (ev.is_incomplete) {
+    editCard.style.display = 'block'; // auto open edit form
+  }
 
   // 2. Score Badge
   const scoreBox = document.getElementById('score-box');
   const scoreVal = document.getElementById('score-val');
   const scoreLabel = document.getElementById('score-label');
 
-  scoreVal.textContent = ev.score.toFixed(1);
-  scoreVal.style.color = ev.color_code;
-  scoreLabel.textContent = ev.score_label;
-  scoreLabel.style.color = ev.color_code;
+  if (ev.score !== null) {
+    scoreVal.textContent = ev.score.toFixed(1);
+    scoreVal.style.color = ev.color_code;
+    scoreLabel.textContent = ev.score_label;
+    scoreLabel.style.color = ev.color_code;
+  } else {
+    scoreVal.textContent = '--';
+    scoreVal.style.color = '#94a3b8';
+    scoreLabel.textContent = 'Incomplete Data (Values Missing)';
+    scoreLabel.style.color = '#64748b';
+  }
 
   // 3. INR Stars
-  document.getElementById('inr-stars').textContent = '⭐'.repeat(Math.floor(ev.inr.inr_stars)) + (ev.inr.inr_stars % 1 !== 0 ? '½' : '');
-  document.getElementById('inr-stars-text').textContent = `${ev.inr.inr_stars} / 5.0 Stars (Draft INR)`;
-  document.getElementById('inr-points-desc').textContent = 
-    `Schedule V: Net score ${ev.inr.final_score} (${ev.inr.breakdown.total_negative_points} neg - ${ev.inr.breakdown.total_positive_points} pos)`;
+  if (ev.inr.inr_stars !== null) {
+    document.getElementById('inr-stars').textContent = '⭐'.repeat(Math.floor(ev.inr.inr_stars)) + (ev.inr.inr_stars % 1 !== 0 ? '½' : '');
+    document.getElementById('inr-stars-text').textContent = `${ev.inr.inr_stars} / 5.0 Stars (Draft INR)`;
+    document.getElementById('inr-points-desc').textContent = 
+      `Schedule V: Net score ${ev.inr.final_score} (${ev.inr.breakdown.total_negative_points || 0} neg - ${ev.inr.breakdown.total_positive_points || 0} pos)`;
+  } else {
+    document.getElementById('inr-stars').textContent = '☆☆☆☆☆';
+    document.getElementById('inr-stars-text').textContent = 'Unrated (Incomplete Fields)';
+    document.getElementById('inr-points-desc').textContent = 'Energy, sugar, or sodium values missing from panel.';
+  }
 
   // 4. HFSS Banner
   const hfssBanner = document.getElementById('hfss-banner');
   const hfssTitle = document.getElementById('hfss-title');
   const hfssReasons = document.getElementById('hfss-reasons');
 
-  if (ev.hfss.is_hfss) {
+  if (ev.is_incomplete || ev.hfss.undetermined) {
+    hfssBanner.className = 'hfss-alert-banner';
+    hfssBanner.style.background = '#f8fafc';
+    hfssBanner.style.borderLeft = '5px solid #64748b';
+    hfssBanner.style.color = '#334155';
+    hfssTitle.textContent = '⚠️ Nutrition Values Incomplete or Missing';
+    hfssReasons.innerHTML = 'OCR could not automatically detect essential values from this image. Please click <strong>"Edit Extracted Values"</strong> above to review or type in the values from your pack.';
+  } else if (ev.hfss.is_hfss) {
+    hfssBanner.style = '';
     hfssBanner.className = 'hfss-alert-banner high-risk';
     hfssTitle.textContent = 'Classified as High Fat, Sugar, Salt (HFSS) ⚠️';
     hfssReasons.innerHTML = `<strong>Violated Draft FSSAI Limits:</strong><ul style="margin-top: 0.25rem; padding-left: 1.25rem;">${ev.hfss.reasons.map(r => `<li>${r}</li>`).join('')}</ul>`;
   } else {
+    hfssBanner.style = '';
     hfssBanner.className = 'hfss-alert-banner balanced';
     hfssTitle.textContent = 'Complies with FSSAI Draft HFSS Criteria ✓';
     hfssReasons.textContent = 'Sugar, saturated fat, and sodium are all within safe regulatory thresholds.';
