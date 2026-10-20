@@ -1,0 +1,27 @@
+{
+  "name": "label-lens",
+  "version": "1.0.0",
+  "description": "AI-Enabled Nutrition Label Analysis & Comparison Platform for Packaged Food Products",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "fssai",
+    "nutrition-label",
+    "ocr",
+    "explainable-ai",
+    "hfss",
+    "pwa"
+  ],
+  "author": "Shreya Sinha / Aniket Dokania",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "tesseract.js": "^5.1.0"
+  }
+}
