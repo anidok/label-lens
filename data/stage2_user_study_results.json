@@ -1,0 +1,80 @@
+{
+  "sample_size": 36,
+  "experimental_comparison": {
+    "time_seconds": {
+      "unaided_mean": 65.18723724537921,
+      "unaided_sd": 13.108066208677416,
+      "aided_mean": 13.640370470267255,
+      "aided_sd": 3.1540709587534943,
+      "reduction_pct": 79.07509039089679,
+      "t_stat": 22.502477079036158,
+      "p_value": 2.116762465648123e-22
+    },
+    "accuracy_percentage": {
+      "unaided_mean": 51.711122604318994,
+      "unaided_sd": 10.95506166809559,
+      "aided_mean": 93.1161332143327,
+      "aided_sd": 4.737851273100326,
+      "increase_absolute_pct": 41.40501061001371,
+      "t_stat": 21.47737351190434,
+      "p_value": 9.723185128431252e-22
+    }
+  },
+  "construct_descriptives": {
+    "Perceived_Usefulness": {
+      "mean": 4.418105663068515,
+      "sd": 0.42122839885178326
+    },
+    "Perceived_Ease_of_Use": {
+      "mean": 4.462839200454117,
+      "sd": 0.4065742204092412
+    },
+    "Transparency": {
+      "mean": 4.191488463163539,
+      "sd": 0.5262593084754841
+    },
+    "Trust": {
+      "mean": 4.190165530715456,
+      "sd": 0.4855099704604513
+    },
+    "Adoption_Intention": {
+      "mean": 4.347625126747121,
+      "sd": 0.33666262041253103
+    }
+  },
+  "hypothesis_testing": {
+    "H4_usefulness": {
+      "r": 0.6823779396909126,
+      "p": 4.56280724340298e-06,
+      "supported": true
+    },
+    "H4_ease_of_use": {
+      "r": 0.4303843703640796,
+      "p": 0.008790049548938403,
+      "supported": true
+    },
+    "H5_trust": {
+      "r": 0.774836805390998,
+      "p": 2.9123182809480748e-08,
+      "supported": true
+    },
+    "H5_transparency": {
+      "r": 0.4833337172028663,
+      "p": 0.002825050563085634,
+      "supported": true
+    }
+  },
+  "regression_model": {
+    "r_squared": 0.837032731809088,
+    "adj_r_squared": 0.816004697203809,
+    "f_statistic": 39.8055618378598,
+    "f_pvalue": 8.567950392511615e-12,
+    "coefficients": {
+      "const": 0.08643583059172322,
+      "Perceived_Usefulness": 0.32797896462581,
+      "Perceived_Ease_of_Use": 0.18704409120476972,
+      "Trust": 0.2854284777919329,
+      "Transparency": 0.1864262088448383
+    }
+  }
+}
