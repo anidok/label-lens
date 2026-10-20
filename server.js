@@ -136,6 +136,22 @@ app.post('/api/analyze-image', upload.single('label_image'), async (req, res) =>
       }
     }
 
+    // 3. High-contrast linear pass at the selected orientation to capture condensed table fonts & glare regions
+    try {
+      const hcBuf = await sharp(req.file.buffer)
+        .rotate(best.angle)
+        .resize({ width: 2400 })
+        .grayscale()
+        .linear(1.5, -40)
+        .toBuffer();
+      const hcRet = await worker.recognize(hcBuf);
+      if (hcRet.data && hcRet.data.text) {
+        best.text = best.text + '\n' + hcRet.data.text;
+      }
+    } catch (passErr) {
+      console.warn('High-contrast OCR pass non-fatal warning:', passErr);
+    }
+
     await worker.terminate();
 
     console.log(`Selected orientation: ${best.angle}° with keyword score: ${best.score}`);
