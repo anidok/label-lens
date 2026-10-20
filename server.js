@@ -11,6 +11,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 
 import { parseNutritionText } from './engine/parser.js';
 import { evaluateFoodProduct } from './engine/rules-engine.js';
+import { computeCumulativeAnalysis } from './engine/cumulative.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -90,15 +91,91 @@ app.post('/api/analyze-text', (req, res) => {
   }
 });
 
-// 4. Optical Character Recognition (OCR) / Vision on Image
-app.post('/api/analyze-image', upload.single('label_image'), async (req, res) => {
+// Helper function for modular OCR processing of a single image buffer
+async function processImageOcr(imageBuffer) {
+  const metadata = await sharp(imageBuffer).metadata();
+  const targetWidth = Math.max(1600, Math.min(2600, (metadata.width || 800) * 2.5));
+
+  const worker = await createWorker('eng');
+
+  const recognizeAtAngle = async (angle) => {
+    const buffer = await sharp(imageBuffer)
+      .rotate(angle)
+      .resize({ width: Math.round(targetWidth), kernel: 'lanczos3' })
+      .grayscale()
+      .normalise()
+      .sharpen()
+      .toBuffer();
+    const ret = await worker.recognize(buffer);
+    const text = ret.data.text || '';
+    const keywords = ['energy', 'calories', 'protein', 'fat', 'sugar', 'sodium', 'safa', 'carb', 'ingredients'];
+    const score = keywords.reduce((acc, kw) => acc + (new RegExp(kw, 'i').test(text) ? 1 : 0), 0);
+    return { angle, score, text, confidence: ret.data.confidence };
+  };
+
+  // 1. Try 0° first
+  let best = await recognizeAtAngle(0);
+
+  // 2. If weak detection (< 2 keywords), test 270° and 90°
+  if (best.score < 2) {
+    const r270 = await recognizeAtAngle(270);
+    if (r270.score > best.score) {
+      best = r270;
+    }
+    if (best.score < 2) {
+      const r90 = await recognizeAtAngle(90);
+      if (r90.score > best.score) {
+        best = r90;
+      }
+    }
+  }
+
+  // 3. High-contrast linear pass at the selected orientation
   try {
-    if (!req.file) {
+    const hcBuf = await sharp(imageBuffer)
+      .rotate(best.angle)
+      .resize({ width: 2400 })
+      .grayscale()
+      .linear(1.5, -40)
+      .toBuffer();
+    const hcRet = await worker.recognize(hcBuf);
+    if (hcRet.data && hcRet.data.text) {
+      best.text = best.text + '\n' + hcRet.data.text;
+    }
+  } catch (passErr) {
+    console.warn('High-contrast OCR pass non-fatal warning:', passErr);
+  }
+
+  // 4. Red-channel pass
+  try {
+    const redBuf = await sharp(imageBuffer)
+      .rotate(best.angle)
+      .extractChannel('red')
+      .resize({ width: 2200 })
+      .normalize()
+      .toBuffer();
+    const redRet = await worker.recognize(redBuf);
+    if (redRet.data && redRet.data.text) {
+      best.text = best.text + '\n' + redRet.data.text;
+    }
+  } catch (redErr) {
+    console.warn('Red-channel OCR pass non-fatal warning:', redErr);
+  }
+
+  await worker.terminate();
+  return best;
+}
+
+// 4. Optical Character Recognition (OCR) / Vision on Image(s) - Supports single & multi-product analysis
+app.post('/api/analyze-image', upload.any(), async (req, res) => {
+  try {
+    const files = req.files && req.files.length > 0 ? req.files : (req.file ? [req.file] : []);
+    if (files.length === 0) {
       return res.status(400).json({ success: false, error: 'No image file uploaded' });
     }
 
     const requestedEngine = (req.body.engine || 'tesseract').toLowerCase();
-    console.log(`Processing image: ${req.file.originalname} (${req.file.size} bytes), Engine: ${requestedEngine}`);
+    console.log(`Processing ${files.length} image(s): ${files.map(f => f.originalname).join(', ')}, Engine: ${requestedEngine}`);
 
     let fallbackReason = null;
 
@@ -115,17 +192,26 @@ app.post('/api/analyze-image', upload.single('label_image'), async (req, res) =>
       console.log('Invoking Google Gemini Flash Vision (@google/genai)...');
       const ai = new GoogleGenAI({ apiKey });
 
-      const mimeType = req.file.mimetype || 'image/jpeg';
-      const prompt = `You are an expert food safety, nutrition, and regulatory compliance analyst specializing in FSSAI (Food Safety and Standards Authority of India) food labeling regulations.
-Analyze this food product packaging photograph and extract the nutritional values and complete ingredients list.
+      const imageParts = files.map(f => ({
+        inlineData: {
+          data: f.buffer.toString('base64'),
+          mimeType: f.mimetype || 'image/jpeg'
+        }
+      }));
 
-CRITICAL INSTRUCTIONS:
-1. Standardize all nutritional values to the "per 100g" (or "per 100ml" for liquids/dairy/beverages) basis as required by FSSAI.
-2. If values on the packaging are presented per serving (e.g. per 30g), mathematically convert them to per 100g or per 100ml. If serving size is not indicated, state the basis in serving_size.
-3. If energy is not explicitly printed or is 0, estimate it using the 4-4-9 Atwater factor: (Protein * 4) + (Carbohydrate * 4) + (Fat * 9).
-4. If only salt is reported, convert to sodium: sodium_mg = salt_g * 400.
-5. Extract the entire ingredients text verbatim from the package if present.
-6. Provide numeric numbers for all nutrient fields (use 0 or null if not mentioned).`;
+      const prompt = `You are an expert food safety, nutrition, and regulatory compliance analyst specializing in FSSAI (Food Safety and Standards Authority of India) food labeling regulations.
+Analyze the provided food packaging image(s).
+
+CRITICAL MULTI-PRODUCT & COMBO INSTRUCTIONS:
+1. The image(s) may contain ONE OR MORE distinct food products (either multiple products within a single photo, or separate products across multiple uploaded photos, e.g. milk, bread, cup noodles, snacks, biscuits).
+2. Detect and extract every distinct food product individually.
+3. For each detected product, extract its product name, brand, and nutritional facts standardized to "per 100g" (or "per 100ml" for liquids/dairy/beverages) basis as required by FSSAI.
+4. If values on packaging are presented per serving (e.g. per 30g), mathematically convert them to per 100g or per 100ml. If serving size is not indicated, state the basis in serving_size.
+5. If energy is not explicitly printed or is 0, estimate it using the 4-4-9 Atwater factor: (Protein * 4) + (Carbohydrate * 4) + (Fat * 9).
+6. If only salt is reported, convert to sodium: sodium_mg = salt_g * 400.
+7. Extract the entire ingredients text verbatim from the package if present.
+8. If only one product is present across the image(s), return an array with exactly that one product item.
+9. Provide a concise combo_title summarizing the meal or items (e.g., "Toned Milk and Cuppa Noodles", or the single product name if only one).`;
 
       try {
         const candidateModels = ['gemini-3-flash-preview', 'gemini-3.7-flash', 'gemini-flash-latest'];
@@ -139,12 +225,7 @@ CRITICAL INSTRUCTIONS:
             response = await ai.models.generateContent({
               model: modelCandidate,
               contents: [
-                {
-                  inlineData: {
-                    data: req.file.buffer.toString('base64'),
-                    mimeType: mimeType
-                  }
-                },
+                ...imageParts,
                 prompt
               ],
               config: {
@@ -152,20 +233,30 @@ CRITICAL INSTRUCTIONS:
                 responseSchema: {
                   type: Type.OBJECT,
                   properties: {
-                    product_name: { type: Type.STRING, description: 'Product title or trade name from package' },
-                    brand: { type: Type.STRING, description: 'Brand or manufacturer name' },
-                    serving_size: { type: Type.STRING, description: 'Serving basis, e.g. "per 100g", "per 100ml", "per 70g pack"' },
-                    energy_kcal: { type: Type.NUMBER, description: 'Energy in kcal per 100g or per 100ml' },
-                    total_fat_g: { type: Type.NUMBER, description: 'Total fat in grams per 100g or per 100ml' },
-                    saturated_fat_g: { type: Type.NUMBER, description: 'Saturated fat in grams per 100g or per 100ml' },
-                    trans_fat_g: { type: Type.NUMBER, description: 'Trans fat in grams per 100g or per 100ml' },
-                    carbohydrate_g: { type: Type.NUMBER, description: 'Total carbohydrates in grams per 100g or per 100ml' },
-                    total_sugars_g: { type: Type.NUMBER, description: 'Total sugars in grams per 100g or per 100ml' },
-                    added_sugars_g: { type: Type.NUMBER, description: 'Added sugars in grams per 100g or per 100ml' },
-                    dietary_fibre_g: { type: Type.NUMBER, description: 'Dietary fibre in grams per 100g or per 100ml' },
-                    protein_g: { type: Type.NUMBER, description: 'Protein in grams per 100g or per 100ml' },
-                    sodium_mg: { type: Type.NUMBER, description: 'Sodium in milligrams per 100g or per 100ml' },
-                    ingredients_text: { type: Type.STRING, description: 'Complete ingredient list as printed on packaging' }
+                    combo_title: { type: Type.STRING, description: 'Descriptive title for the meal combo or single product' },
+                    products: {
+                      type: Type.ARRAY,
+                      description: 'List of individual food products detected across the image(s)',
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          product_name: { type: Type.STRING, description: 'Product title or trade name from package' },
+                          brand: { type: Type.STRING, description: 'Brand or manufacturer name' },
+                          serving_size: { type: Type.STRING, description: 'Serving basis, e.g. "per 100g", "per 100ml", "per 70g pack"' },
+                          energy_kcal: { type: Type.NUMBER, description: 'Energy in kcal per 100g or per 100ml' },
+                          total_fat_g: { type: Type.NUMBER, description: 'Total fat in grams per 100g or per 100ml' },
+                          saturated_fat_g: { type: Type.NUMBER, description: 'Saturated fat in grams per 100g or per 100ml' },
+                          trans_fat_g: { type: Type.NUMBER, description: 'Trans fat in grams per 100g or per 100ml' },
+                          carbohydrate_g: { type: Type.NUMBER, description: 'Total carbohydrates in grams per 100g or per 100ml' },
+                          total_sugars_g: { type: Type.NUMBER, description: 'Total sugars in grams per 100g or per 100ml' },
+                          added_sugars_g: { type: Type.NUMBER, description: 'Added sugars in grams per 100g or per 100ml' },
+                          dietary_fibre_g: { type: Type.NUMBER, description: 'Dietary fibre in grams per 100g or per 100ml' },
+                          protein_g: { type: Type.NUMBER, description: 'Protein in grams per 100g or per 100ml' },
+                          sodium_mg: { type: Type.NUMBER, description: 'Sodium in milligrams per 100g or per 100ml' },
+                          ingredients_text: { type: Type.STRING, description: 'Complete ingredient list as printed on packaging' }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -185,24 +276,46 @@ CRITICAL INSTRUCTIONS:
         }
 
         const extracted = JSON.parse(response.text);
+        const rawProducts = (extracted.products && extracted.products.length > 0)
+          ? extracted.products
+          : [extracted];
 
-        // Atwater energy estimation fallback if zero or missing
-        if ((!extracted.energy_kcal || extracted.energy_kcal === 0) && (extracted.protein_g || extracted.carbohydrate_g || extracted.total_fat_g)) {
-          extracted.energy_kcal = Math.round((extracted.protein_g || 0) * 4 + (extracted.carbohydrate_g || 0) * 4 + (extracted.total_fat_g || 0) * 9);
-        }
+        const processedProducts = rawProducts.map((p, idx) => {
+          if ((!p.energy_kcal || p.energy_kcal === 0) && (p.protein_g || p.carbohydrate_g || p.total_fat_g)) {
+            p.energy_kcal = Math.round((p.protein_g || 0) * 4 + (p.carbohydrate_g || 0) * 4 + (p.total_fat_g || 0) * 9);
+          }
+          const evaluation = evaluateFoodProduct(p);
+          return {
+            id: `prod-${idx + 1}`,
+            product_name: p.product_name || `Product ${idx + 1}`,
+            brand: p.brand || 'Detected Brand',
+            serving_size: p.serving_size || 'per 100g',
+            nutrients: p,
+            evaluation
+          };
+        });
 
-        const evaluation = evaluateFoodProduct(extracted);
+        const cumulative = computeCumulativeAnalysis(processedProducts);
+        const isCombo = cumulative.is_combo;
+        const mainProd = processedProducts[0];
 
         return res.json({
           success: true,
           engine_used: 'gemini',
           model: activeModel,
-          product_name: extracted.product_name || req.file.originalname.replace(/\.[^/.]+$/, ''),
-          brand: extracted.brand || 'Detected Brand',
-          parsed_nutrients: extracted,
-          raw_text: response.text,
-          evaluation
+          is_cumulative: isCombo,
+          product_count: processedProducts.length,
+          combo_title: extracted.combo_title || cumulative.combo_title,
+          cumulative: cumulative,
+          products: cumulative.products,
+          // Backwards-compatible top-level keys:
+          product_name: isCombo ? cumulative.combo_title : mainProd.product_name,
+          brand: isCombo ? `${processedProducts.length} Items Meal Combo` : mainProd.brand,
+          parsed_nutrients: isCombo ? cumulative.cumulative_nutrients : mainProd.nutrients,
+          evaluation: isCombo ? cumulative.evaluation : mainProd.evaluation,
+          raw_text: response.text
         });
+
       } catch (aiErr) {
         console.warn('AI Vision cloud temporarily busy/unavailable. Falling back smoothly to local offline OCR pipeline:', aiErr.message);
         fallbackReason = 'Cloud AI Vision temporarily experienced high demand (503). Analysis smoothly completed via on-device Local OCR.';
@@ -210,96 +323,52 @@ CRITICAL INSTRUCTIONS:
       }
     }
 
-    // --- ENGINE 2: Local Offline Sharp + Tesseract OCR Pipeline (Toggle OFF) ---
-    const metadata = await sharp(req.file.buffer).metadata();
-    const targetWidth = Math.max(1600, Math.min(2600, (metadata.width || 800) * 2.5));
+    // --- ENGINE 2: Local Offline Sharp + Tesseract OCR Pipeline ---
+    const localProducts = [];
+    let combinedRawOcrText = '';
+    let lastConfidence = 0;
+    let lastOrientation = 0;
 
-    const worker = await createWorker('eng');
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ocrResult = await processImageOcr(file.buffer);
+      combinedRawOcrText += `\n--- [Image ${i + 1}: ${file.originalname}] ---\n` + ocrResult.text;
+      lastConfidence = ocrResult.confidence;
+      lastOrientation = ocrResult.angle;
 
-    const recognizeAtAngle = async (angle) => {
-      const buffer = await sharp(req.file.buffer)
-        .rotate(angle)
-        .resize({ width: Math.round(targetWidth), kernel: 'lanczos3' })
-        .grayscale()
-        .normalise()
-        .sharpen()
-        .toBuffer();
-      const ret = await worker.recognize(buffer);
-      const text = ret.data.text || '';
-      const keywords = ['energy', 'calories', 'protein', 'fat', 'sugar', 'sodium', 'safa', 'carb', 'ingredients'];
-      const score = keywords.reduce((acc, kw) => acc + (new RegExp(kw, 'i').test(text) ? 1 : 0), 0);
-      return { angle, score, text, confidence: ret.data.confidence };
-    };
-
-    // 1. Try 0° first
-    let best = await recognizeAtAngle(0);
-
-    // 2. If weak detection (< 2 keywords), test 270° (sideways vertical bar) and 90°
-    if (best.score < 2) {
-      console.log('Low keyword detection at 0°. Testing 270° orientation...');
-      const r270 = await recognizeAtAngle(270);
-      if (r270.score > best.score) {
-        best = r270;
-      }
-      if (best.score < 2) {
-        console.log('Testing 90° orientation...');
-        const r90 = await recognizeAtAngle(90);
-        if (r90.score > best.score) {
-          best = r90;
-        }
-      }
+      const parsedNutrients = parseNutritionText(ocrResult.text);
+      const evaluation = evaluateFoodProduct(parsedNutrients);
+      localProducts.push({
+        id: `prod-${i + 1}`,
+        product_name: file.originalname.replace(/\.[^/.]+$/, ''),
+        brand: 'Local OCR Detection',
+        serving_size: parsedNutrients.serving_size || 'per 100g',
+        nutrients: parsedNutrients,
+        evaluation
+      });
     }
 
-    // 3. High-contrast linear pass at the selected orientation to capture condensed table fonts & glare regions
-    try {
-      const hcBuf = await sharp(req.file.buffer)
-        .rotate(best.angle)
-        .resize({ width: 2400 })
-        .grayscale()
-        .linear(1.5, -40)
-        .toBuffer();
-      const hcRet = await worker.recognize(hcBuf);
-      if (hcRet.data && hcRet.data.text) {
-        best.text = best.text + '\n' + hcRet.data.text;
-      }
-    } catch (passErr) {
-      console.warn('High-contrast OCR pass non-fatal warning:', passErr);
-    }
+    const cumulative = computeCumulativeAnalysis(localProducts);
+    const isCombo = cumulative.is_combo;
+    const mainProd = localProducts[0];
 
-    // 4. Red-channel pass (turns blue/cyan ink on white packaging deep black to pierce glare)
-    try {
-      const redBuf = await sharp(req.file.buffer)
-        .rotate(best.angle)
-        .extractChannel('red')
-        .resize({ width: 2200 })
-        .normalize()
-        .toBuffer();
-      const redRet = await worker.recognize(redBuf);
-      if (redRet.data && redRet.data.text) {
-        best.text = best.text + '\n' + redRet.data.text;
-      }
-    } catch (redErr) {
-      console.warn('Red-channel OCR pass non-fatal warning:', redErr);
-    }
-
-    await worker.terminate();
-
-    console.log(`Selected orientation: ${best.angle}° with keyword score: ${best.score}`);
-
-    // Parse the extracted text
-    const parsedNutrients = parseNutritionText(best.text);
-    const evaluation = evaluateFoodProduct(parsedNutrients);
-
-    res.json({
+    return res.json({
       success: true,
       engine_used: 'tesseract',
       fallback_triggered: !!fallbackReason,
       fallback_message: fallbackReason || null,
-      raw_ocr_text: best.text,
-      orientation_angle: best.angle,
-      confidence: best.confidence,
-      parsed_nutrients: parsedNutrients,
-      evaluation
+      is_cumulative: isCombo,
+      product_count: localProducts.length,
+      combo_title: cumulative.combo_title,
+      cumulative: cumulative,
+      products: cumulative.products,
+      product_name: isCombo ? cumulative.combo_title : mainProd.product_name,
+      brand: isCombo ? `${localProducts.length} Items Meal Combo` : mainProd.brand,
+      parsed_nutrients: isCombo ? cumulative.cumulative_nutrients : mainProd.nutrients,
+      evaluation: isCombo ? cumulative.evaluation : mainProd.evaluation,
+      raw_ocr_text: combinedRawOcrText.trim(),
+      orientation_angle: lastOrientation,
+      confidence: lastConfidence
     });
   } catch (err) {
     console.error('Error processing OCR image:', err);
