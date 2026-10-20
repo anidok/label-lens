@@ -1,0 +1,116 @@
+{
+  "additives": [
+    {
+      "code": "INS 102",
+      "aliases": ["102", "e102", "tartrazine", "fd&c yellow 5"],
+      "name": "Tartrazine",
+      "category": "Synthetic Food Colour",
+      "purpose": "Provides bright yellow colour",
+      "concern": "Azo dye associated with hyperactivity in sensitive children and mild allergic reactions in aspirin-sensitive individuals."
+    },
+    {
+      "code": "INS 110",
+      "aliases": ["110", "e110", "sunset yellow", "sunset yellow fcf", "fd&c yellow 6"],
+      "name": "Sunset Yellow FCF",
+      "category": "Synthetic Food Colour",
+      "purpose": "Provides orange/yellow hue",
+      "concern": "Azo dye commonly flagged for potential intolerance reactions in children."
+    },
+    {
+      "code": "INS 122",
+      "aliases": ["122", "e122", "carmoisine", "azorubine"],
+      "name": "Carmoisine (Azorubine)",
+      "category": "Synthetic Food Colour",
+      "purpose": "Provides red colour",
+      "concern": "Synthetic azo dye; banned or restricted in several jurisdictions."
+    },
+    {
+      "code": "INS 124",
+      "aliases": ["124", "e124", "ponceau 4r", "cochineal red a"],
+      "name": "Ponceau 4R",
+      "category": "Synthetic Food Colour",
+      "purpose": "Provides strawberry red hue",
+      "concern": "Synthetic dye subject to warning labels in the EU."
+    },
+    {
+      "code": "INS 150d",
+      "aliases": ["150d", "e150d", "caramel iv", "ammonia sulphite caramel"],
+      "name": "Caramel IV (Sulphite Ammonia Caramel)",
+      "category": "Food Colour",
+      "purpose": "Deep brown colouring in colas, sauces, and baked goods",
+      "concern": "Manufactured using ammonium and sulphite compounds; contains traces of 4-MEI."
+    },
+    {
+      "code": "INS 211",
+      "aliases": ["211", "e211", "sodium benzoate"],
+      "name": "Sodium Benzoate",
+      "category": "Preservative",
+      "purpose": "Inhibits mold, yeast, and bacterial growth in acidic foods",
+      "concern": "When combined with Vitamin C (Ascorbic acid), can form trace benzene under heat/light."
+    },
+    {
+      "code": "INS 202",
+      "aliases": ["202", "e202", "potassium sorbate"],
+      "name": "Potassium Sorbate",
+      "category": "Preservative",
+      "purpose": "Antimicrobial agent extending shelf-life",
+      "concern": "Generally regarded as safe; rare contact sensitivity reported."
+    },
+    {
+      "code": "INS 223",
+      "aliases": ["223", "e223", "sodium metabisulphite", "metabisulphite"],
+      "name": "Sodium Metabisulphite",
+      "category": "Preservative / Antioxidant",
+      "purpose": "Prevents browning in biscuits, dried fruits, and juices",
+      "concern": "Sulphites can trigger severe bronchial constriction in asthmatic individuals."
+    },
+    {
+      "code": "INS 621",
+      "aliases": ["621", "e621", "msg", "monosodium glutamate"],
+      "name": "Monosodium Glutamate (MSG)",
+      "category": "Flavour Enhancer",
+      "purpose": "Boosts savory umami taste",
+      "concern": "FSSAI requires explicit declaration. May cause sensitivity symptoms in a small subset of consumers."
+    },
+    {
+      "code": "INS 627 / 631",
+      "aliases": ["627", "631", "635", "disodium guanylate", "disodium inosinate", "disodium 5'-ribonucleotides"],
+      "name": "Disodium Inosinate & Guanylate (I+G)",
+      "category": "Flavour Enhancer",
+      "purpose": "Synergistic umami booster often paired with MSG in snacks and noodles",
+      "concern": "Metabolized to purines; individuals with gout or uric acid issues should be aware."
+    },
+    {
+      "code": "INS 319",
+      "aliases": ["319", "e319", "tbhq", "tertiary butylhydroquinone"],
+      "name": "TBHQ",
+      "category": "Antioxidant",
+      "purpose": "Prevents oxidation and rancidity in vegetable oils and fried snacks",
+      "concern": "Synthetic antioxidant strictly regulated with maximum permissible usage limits."
+    },
+    {
+      "code": "INS 950",
+      "aliases": ["950", "e950", "acesulfame potassium", "acesulfame k"],
+      "name": "Acesulfame Potassium",
+      "category": "Artificial Non-Caloric Sweetener",
+      "purpose": "Calorie-free intense sweetener",
+      "concern": "Often blended with other artificial sweeteners; long-term metabolic effects widely debated."
+    },
+    {
+      "code": "INS 951",
+      "aliases": ["951", "e951", "aspartame"],
+      "name": "Aspartame",
+      "category": "Artificial Non-Caloric Sweetener",
+      "purpose": "Intense sweetener for low-calorie beverages and chewing gum",
+      "concern": "Unsafe for individuals with Phenylketonuria (PKU). Classified as 'possibly carcinogenic' (IARC Group 2B)."
+    },
+    {
+      "code": "INS 955",
+      "aliases": ["955", "e955", "sucralose"],
+      "name": "Sucralose",
+      "category": "Artificial Non-Caloric Sweetener",
+      "purpose": "High-intensity sweetener derived from sucrose",
+      "concern": "Heat-stable sweetener; emerging research studies impacts on gut microbiome."
+    }
+  ]
+}

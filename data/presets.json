@@ -1,0 +1,172 @@
+{
+  "presets": [
+    {
+      "id": "good-day-butter",
+      "name": "Britannia Good Day Butter Cookies",
+      "brand": "Britannia",
+      "category": "Biscuits & Cookies",
+      "serving_size": "per 100g",
+      "nutrients": {
+        "energy_kcal": 491,
+        "total_fat_g": 21.0,
+        "saturated_fat_g": 10.5,
+        "trans_fat_g": 0.0,
+        "carbohydrate_g": 69.0,
+        "total_sugars_g": 24.5,
+        "added_sugars_g": 23.0,
+        "dietary_fibre_g": 1.8,
+        "protein_g": 6.5,
+        "sodium_mg": 280
+      },
+      "ingredients": "Refined Wheat Flour (Maida), Sugar, Edible Vegetable Oil (Palm), Butter (2%), Invert Sugar Syrup, Milk Solids, Iodised Salt, Emulsifiers (INS 322, INS 471), Raising Agents [INS 503(ii), INS 500(ii)], Nature Identical and Artificial Flavouring Substances (Butter, Vanilla).",
+      "package_notes": "Claims 'Rich Butter Taste', but butter constitutes only 2% while palm oil is the primary shortening."
+    },
+    {
+      "id": "farmlite-digestive",
+      "name": "Sunfeast Farmlite Digestive High Fibre",
+      "brand": "ITC Sunfeast",
+      "category": "Biscuits & Cookies",
+      "serving_size": "per 100g",
+      "nutrients": {
+        "energy_kcal": 462,
+        "total_fat_g": 17.5,
+        "saturated_fat_g": 6.8,
+        "trans_fat_g": 0.0,
+        "carbohydrate_g": 68.0,
+        "total_sugars_g": 14.0,
+        "added_sugars_g": 13.0,
+        "dietary_fibre_g": 6.2,
+        "protein_g": 8.0,
+        "sodium_mg": 310
+      },
+      "ingredients": "Wheat Flour (Atta) (38.8%), Refined Wheat Flour (Maida), Edible Vegetable Oil (Refined Palm Oil), Sugar, Wheat Bran (4.6%), Liquid Glucose, Raising Agents [INS 503(ii), INS 500(ii)], Maltodextrin, Invert Sugar Syrup, Iodised Salt, Emulsifiers (INS 322, INS 471, INS 472e).",
+      "package_notes": "Higher dietary fibre (6.2g) and lower sugar than standard butter cookies, though palm oil is still present."
+    },
+    {
+      "id": "maggi-masala",
+      "name": "Maggi 2-Minute Masala Noodles",
+      "brand": "Nestlé",
+      "category": "Instant Noodles & Pasta",
+      "serving_size": "per 100g",
+      "nutrients": {
+        "energy_kcal": 427,
+        "total_fat_g": 15.7,
+        "saturated_fat_g": 6.8,
+        "trans_fat_g": 0.12,
+        "carbohydrate_g": 63.5,
+        "total_sugars_g": 2.2,
+        "added_sugars_g": 1.2,
+        "dietary_fibre_g": 3.6,
+        "protein_g": 8.0,
+        "sodium_mg": 1020
+      },
+      "ingredients": "Noodles: Refined Wheat Flour (Maida), Palm Oil, Iodised Salt, Wheat Gluten, Thickeners (INS 508, INS 412), Acidity Regulators [INS 501(i), INS 500(i)], Humectant (INS 451(i)). Tastemaker: Mixed Spices (Dehydrated Onion, Coriander Powder, Turmeric Powder, Red Chilli Powder, Cumin Powder, Aniseed, Fenugreek, Ginger, Black Pepper, Clove, Nutmeg, Cardamom), Sugar, Refined Wheat Flour (Maida), Iodised Salt, Palm Oil, Hydrolysed Groundnut Protein, Flavour Enhancer (INS 635), Acidity Regulator (INS 330), Colour (INS 150d).",
+      "package_notes": "Extremely high sodium (1020 mg / 100g = 2.38 mg/kcal), tripping the FSSAI HFSS threshold significantly."
+    },
+    {
+      "id": "yippee-magic-masala",
+      "name": "Sunfeast YiPPee! Magic Masala Noodles",
+      "brand": "ITC Sunfeast",
+      "category": "Instant Noodles & Pasta",
+      "serving_size": "per 100g",
+      "nutrients": {
+        "energy_kcal": 468,
+        "total_fat_g": 19.8,
+        "saturated_fat_g": 9.2,
+        "trans_fat_g": 0.1,
+        "carbohydrate_g": 63.0,
+        "total_sugars_g": 3.4,
+        "added_sugars_g": 2.1,
+        "dietary_fibre_g": 3.1,
+        "protein_g": 9.3,
+        "sodium_mg": 980
+      },
+      "ingredients": "Instant Noodles: Wheat Flour (Maida), Refined Palm Oil, Iodised Salt, Wheat Gluten, Mineral (Calcium Carbonate), Thickeners (INS 412, INS 508), Acidity Regulators [INS 501(i), INS 500(i)]. Masala Mix: Dehydrated Vegetables (Carrot, Cabbage), Spices & Condiments, Iodised Salt, Hydrolyzed Vegetable Protein (Soy), Flavour Enhancers (INS 627, INS 631), Garlic Powder, Sugar, Anticaking Agent (INS 551).",
+      "package_notes": "High saturated fat (9.2g) and high sodium (980mg), containing flavour enhancers INS 627 and 631."
+    },
+    {
+      "id": "lays-magic-masala",
+      "name": "Lay's India's Magic Masala Potato Chips",
+      "brand": "PepsiCo Lay's",
+      "category": "Snacks & Savouries",
+      "serving_size": "per 100g",
+      "nutrients": {
+        "energy_kcal": 555,
+        "total_fat_g": 35.7,
+        "saturated_fat_g": 16.5,
+        "trans_fat_g": 0.1,
+        "carbohydrate_g": 51.5,
+        "total_sugars_g": 5.0,
+        "added_sugars_g": 3.5,
+        "dietary_fibre_g": 4.1,
+        "protein_g": 6.8,
+        "sodium_mg": 680
+      },
+      "ingredients": "Potato, Edible Vegetable Oil (Palmolein, Rice Bran Oil), Seasoning (Spices and Condiments, Iodised Salt, Sugar, Maltodextrin, Black Salt, Tomato Powder, Acidity Regulators (INS 330, INS 334), Flavour Enhancers (INS 627, INS 631), Anticaking Agent (INS 551), Antioxidant (INS 319)).",
+      "package_notes": "Very high energy and saturated fat (16.5g = 26.7% of energy, well over 10% HFSS limit), contains antioxidant TBHQ (INS 319)."
+    },
+    {
+      "id": "kelloggs-chocos",
+      "name": "Kellogg's Chocos Chocolate Cereal",
+      "brand": "Kellogg's",
+      "category": "Breakfast Cereals",
+      "serving_size": "per 100g",
+      "nutrients": {
+        "energy_kcal": 384,
+        "total_fat_g": 2.5,
+        "saturated_fat_g": 1.1,
+        "trans_fat_g": 0.0,
+        "carbohydrate_g": 83.2,
+        "total_sugars_g": 29.8,
+        "added_sugars_g": 28.5,
+        "dietary_fibre_g": 4.8,
+        "protein_g": 6.6,
+        "sodium_mg": 320
+      },
+      "ingredients": "Whole Wheat Flour (Atta) (29%), Refined Wheat Flour (Maida) (29%), Sugar, Cocoa Solids (5.4%), Minerals, Edible Vegetable Oil (Palmolein), Cereal Extract, Iodised Salt, Colour (INS 150d), Vitamins, Antioxidant (INS 320).",
+      "package_notes": "Very high total sugars (29.8g = 31% of energy, >3x the FSSAI HFSS threshold), contains synthetic colour Caramel IV (INS 150d)."
+    },
+    {
+      "id": "kelloggs-corn-flakes",
+      "name": "Kellogg's Real Almond & Honey Corn Flakes",
+      "brand": "Kellogg's",
+      "category": "Breakfast Cereals",
+      "serving_size": "per 100g",
+      "nutrients": {
+        "energy_kcal": 392,
+        "total_fat_g": 3.8,
+        "saturated_fat_g": 0.9,
+        "trans_fat_g": 0.0,
+        "carbohydrate_g": 82.0,
+        "total_sugars_g": 17.5,
+        "added_sugars_g": 15.0,
+        "dietary_fibre_g": 3.5,
+        "protein_g": 7.2,
+        "sodium_mg": 460
+      },
+      "ingredients": "Corn Grits (61.5%), Sugar, Sliced Almonds (8.6%), Honey (1.7%), Malt Extract, Iodised Salt, Vitamins, Minerals, Antioxidant (INS 320).",
+      "package_notes": "Contains real tree nuts (Almonds). Lower saturated fat than Chocos, but contains moderate added sugars."
+    },
+    {
+      "id": "amul-toned-milk",
+      "name": "Amul Taaza Toned Milk (Pasteurised)",
+      "brand": "Amul",
+      "category": "Dairy & Milk",
+      "serving_size": "per 100ml",
+      "nutrients": {
+        "energy_kcal": 58,
+        "total_fat_g": 3.0,
+        "saturated_fat_g": 1.9,
+        "trans_fat_g": 0.0,
+        "carbohydrate_g": 4.7,
+        "total_sugars_g": 4.7,
+        "added_sugars_g": 0.0,
+        "dietary_fibre_g": 0.0,
+        "protein_g": 3.1,
+        "sodium_mg": 50
+      },
+      "ingredients": "Toned Milk, Vitamin A, Vitamin D.",
+      "package_notes": "Zero added sugar (sugars are 100% natural lactose), zero additives or preservatives, excellent nutritional balance."
+    }
+  ]
+}

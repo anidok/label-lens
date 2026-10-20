@@ -1,0 +1,92 @@
+{
+  "families": [
+    {
+      "id": "milk",
+      "name": "Milk & Dairy",
+      "severity": "high",
+      "keywords": [
+        "milk", "milk solids", "skimmed milk", "whole milk", "condensed milk",
+        "dairy", "butter", "ghee", "clarified butter", "paneer", "cottage cheese",
+        "cheese", "casein", "sodium caseinate", "calcium caseinate",
+        "whey", "whey protein", "whey permeate", "malai", "dahi", "curd",
+        "lactose", "milk fat", "mava", "khoya"
+      ]
+    },
+    {
+      "id": "gluten_wheat",
+      "name": "Wheat & Gluten",
+      "severity": "high",
+      "keywords": [
+        "wheat", "wheat flour", "refined wheat flour", "whole wheat", "maida",
+        "sooji", "suji", "rava", "semolina", "atta", "chakki atta", "gluten",
+        "wheat gluten", "barley", "malt", "malt extract", "rye", "oats", "spelt",
+        "farina", "triticale", "hing"
+      ],
+      "note": "Commercial Hing (Asafoetida) in India frequently contains maida/wheat flour as an anticaking gum carrier."
+    },
+    {
+      "id": "peanuts",
+      "name": "Peanuts / Groundnuts",
+      "severity": "critical",
+      "keywords": [
+        "peanut", "peanuts", "groundnut", "groundnuts", "moongphali",
+        "mungfali", "arachis oil", "peanut butter", "peanut flour"
+      ]
+    },
+    {
+      "id": "tree_nuts",
+      "name": "Tree Nuts",
+      "severity": "critical",
+      "keywords": [
+        "almond", "almonds", "badam", "cashew", "cashews", "kaju",
+        "walnut", "walnuts", "akhrot", "pistachio", "pistachios", "pista",
+        "hazelnut", "hazelnuts", "pecan", "macadamia", "brazil nut"
+      ]
+    },
+    {
+      "id": "soy",
+      "name": "Soy / Soybeans",
+      "severity": "high",
+      "keywords": [
+        "soy", "soya", "soybean", "soybeans", "soya flour", "soya protein",
+        "soya chunks", "soy lecithin", "soya lecithin", "lecithin (soy)", "e322",
+        "tofu", "edamame", "hydrolyzed soy protein", "textured vegetable protein"
+      ]
+    },
+    {
+      "id": "egg",
+      "name": "Egg",
+      "severity": "critical",
+      "keywords": [
+        "egg", "eggs", "egg white", "egg yolk", "albumin", "ovalbumin",
+        "egg powder", "whole egg", "lysozyme", "mayonnaise"
+      ]
+    },
+    {
+      "id": "fish",
+      "name": "Fish",
+      "severity": "high",
+      "keywords": [
+        "fish", "fish oil", "anchovy", "gelatin (fish)", "isinglass", "omega-3 (fish)"
+      ]
+    },
+    {
+      "id": "shellfish",
+      "name": "Crustaceans & Molluscs",
+      "severity": "critical",
+      "keywords": [
+        "crustacean", "crustaceans", "shrimp", "shrimps", "prawn", "prawns",
+        "jhinga", "crab", "lobster", "mussel", "oyster", "clam", "squid"
+      ]
+    },
+    {
+      "id": "sesame_mustard",
+      "name": "Sesame & Mustard",
+      "severity": "medium",
+      "keywords": [
+        "sesame", "sesame seeds", "til", "gingelly", "gingelly oil", "tahini",
+        "mustard", "mustard oil", "mustard seeds", "rai", "sarson", "kasundi"
+      ]
+    }
+  ]
+}

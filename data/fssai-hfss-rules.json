@@ -1,0 +1,52 @@
+{
+  "name": "FSSAI 2022 Draft HFSS Regulations",
+  "version": "Draft Notification F. No. Std./SP-08/T(FoPNL-N-01)",
+  "reference": "Draft Food Safety and Standards (Labelling and Display) Amendment Regulations, 2022",
+  "conversion_factors": {
+    "sugar_kcal_per_gram": 4.0,
+    "saturated_fat_kcal_per_gram": 9.0,
+    "total_fat_kcal_per_gram": 9.0,
+    "protein_kcal_per_gram": 4.0,
+    "salt_to_sodium_ratio": 0.4
+  },
+  "hfss_thresholds": {
+    "sugar": {
+      "metric": "percentage_of_energy",
+      "limit": 10.0,
+      "unit": "%",
+      "moderate_limit": 5.0,
+      "description": "High in sugar if energy contributed by total sugar exceeds 10% of total product energy"
+    },
+    "saturated_fat": {
+      "metric": "percentage_of_energy",
+      "limit": 10.0,
+      "unit": "%",
+      "moderate_limit": 5.0,
+      "description": "High in saturated fat if energy contributed by saturated fat exceeds 10% of total product energy"
+    },
+    "sodium": {
+      "metric": "sodium_per_kcal",
+      "limit": 1.0,
+      "unit": "mg/kcal",
+      "moderate_limit": 0.5,
+      "description": "High in sodium if sodium exceeds 1 mg per 1 kcal of food energy"
+    }
+  },
+  "scoring": {
+    "base_score": 5.0,
+    "min_score": 1.0,
+    "deductions": {
+      "threshold_exceeded_per_nutrient": 1.0,
+      "moderate_threshold_per_nutrient": 0.5,
+      "hfss_overall_penalty": 0.5,
+      "flagged_additive_per_item": 0.5,
+      "max_additive_deduction": 1.5
+    },
+    "score_labels": [
+      { "min": 4.5, "label": "Nutritionally Balanced", "badge": "success", "color": "#10b981" },
+      { "min": 3.0, "label": "Moderate / Consume in Moderation", "badge": "warning", "color": "#f59e0b" },
+      { "min": 2.0, "label": "Elevated Risk / HFSS Indicator", "badge": "caution", "color": "#f97316" },
+      { "min": 1.0, "label": "High HFSS / Unfavourable Profile", "badge": "danger", "color": "#ef4444" }
+    ]
+  }
+}
