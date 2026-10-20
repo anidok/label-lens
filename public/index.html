@@ -261,107 +261,284 @@
           </div>
         </div>
 
-        <!-- Verdict Header: Scores & INR Stars -->
-        <div class="verdict-header">
-          <!-- Suitability Score Card -->
-          <div class="verdict-badge-box" id="score-box" style="background: #f1f5f9; border: 1px solid var(--neutral-300);">
-            <div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--neutral-600); margin-bottom: 0.25rem;">
-              Health Suitability Score
-            </div>
-            <div class="score-display" id="score-val">0.0</div>
-            <div style="font-size: 0.95rem; font-weight: 700;" id="score-label">Calculating...</div>
-            <div style="font-size: 0.75rem; color: var(--neutral-600); margin-top: 0.35rem;">
-              Heuristic penalty score floored at 1.0
+        <!-- Evaluation Engine Mode Switcher: Rule Engine (XAI) vs ML Classifier -->
+        <div class="card engine-mode-switcher-card" style="margin-bottom: 1.25rem; padding: 0.85rem 1.15rem; background: #ffffff; border: 1.5px solid var(--neutral-300); border-radius: var(--radius); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; align-items: center; gap: 0.85rem;">
+            <div style="font-size: 1.5rem;">⚙️</div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span style="font-weight: 700; font-size: 0.95rem; color: var(--neutral-900);">Evaluation Engine:</span>
+                <span id="active-engine-badge" class="badge" style="background: #e0e7ff; color: #4338ca; font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 9999px; font-weight: 700;">⚖️ FSSAI Rule Engine (XAI)</span>
+              </div>
+              <p id="active-engine-desc" style="font-size: 0.78rem; color: var(--neutral-600); margin: 0.2rem 0 0 0;">
+                100% Deterministic Statutory Rules anchored directly to FSSAI 2022 Draft Schedule V.
+              </p>
             </div>
           </div>
-
-          <!-- Official FSSAI Draft INR Stars -->
-          <div class="inr-box">
-            <div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--neutral-600); margin-bottom: 0.25rem;">
-              Indian Nutrition Rating (INR)
-            </div>
-            <div class="stars-display" id="inr-stars">⭐⭐⭐</div>
-            <div style="font-size: 0.95rem; font-weight: 700; color: var(--neutral-900);" id="inr-stars-text">3.0 / 5.0 Stars</div>
-            <div style="font-size: 0.75rem; color: var(--neutral-600); margin-top: 0.35rem;" id="inr-points-desc">
-              Schedule V points formula (Negative vs Modifying points)
-            </div>
+          <div class="btn-group" style="display: inline-flex; border-radius: var(--radius-sm); border: 1.5px solid var(--neutral-300); overflow: hidden; background: #f8fafc;">
+            <button type="button" id="btn-engine-rule" class="btn" style="padding: 0.45rem 0.95rem; font-size: 0.82rem; font-weight: 700; background: var(--primary); color: #ffffff; border: none; cursor: pointer; transition: all 0.2s;">
+              ⚖️ Rule Engine (XAI)
+            </button>
+            <button type="button" id="btn-engine-ml" class="btn" style="padding: 0.45rem 0.95rem; font-size: 0.82rem; font-weight: 700; background: transparent; color: var(--neutral-700); border: none; cursor: pointer; transition: all 0.2s;">
+              🤖 ML Classifier (Trained)
+            </button>
           </div>
         </div>
 
-        <!-- HFSS Warning Banner -->
-        <div id="hfss-banner" class="hfss-alert-banner high-risk">
-          <div style="font-size: 1.5rem;">⚠️</div>
-          <div>
-            <div style="font-weight: 700; font-size: 1.05rem;" id="hfss-title">Classified as High Fat, Sugar, Salt (HFSS)</div>
-            <div style="font-size: 0.88rem; margin-top: 0.25rem;" id="hfss-reasons">
-              Exceeds draft FSSAI thresholds for one or more key health-risk nutrients.
+        <!-- ============================================== -->
+        <!-- VIEW 1: DETERMINISTIC FSSAI RULE ENGINE VIEW   -->
+        <!-- ============================================== -->
+        <div id="rule-engine-view">
+
+          <!-- Verdict Header: Scores & INR Stars -->
+          <div class="verdict-header">
+            <!-- Suitability Score Card -->
+            <div class="verdict-badge-box" id="score-box" style="background: #f1f5f9; border: 1px solid var(--neutral-300);">
+              <div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--neutral-600); margin-bottom: 0.25rem;">
+                Health Suitability Score
+              </div>
+              <div class="score-display" id="score-val">0.0</div>
+              <div style="font-size: 0.95rem; font-weight: 700;" id="score-label">Calculating...</div>
+              <div style="font-size: 0.75rem; color: var(--neutral-600); margin-top: 0.35rem;">
+                Heuristic penalty score floored at 1.0
+              </div>
+            </div>
+
+            <!-- Official FSSAI Draft INR Stars -->
+            <div class="inr-box">
+              <div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--neutral-600); margin-bottom: 0.25rem;">
+                Indian Nutrition Rating (INR)
+              </div>
+              <div class="stars-display" id="inr-stars">⭐⭐⭐</div>
+              <div style="font-size: 0.95rem; font-weight: 700; color: var(--neutral-900);" id="inr-stars-text">3.0 / 5.0 Stars</div>
+              <div style="font-size: 0.75rem; color: var(--neutral-600); margin-top: 0.35rem;" id="inr-points-desc">
+                Schedule V points formula (Negative vs Modifying points)
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Nutrients Traffic Light Grid -->
-        <div class="card">
-          <div class="card-title">Key Nutrient Breakdown vs. FSSAI Limits</div>
-          <div class="nutrients-grid" id="nutrients-cards-container">
-            <!-- Populated via JS -->
+          <!-- HFSS Warning Banner -->
+          <div id="hfss-banner" class="hfss-alert-banner high-risk">
+            <div style="font-size: 1.5rem;">⚠️</div>
+            <div>
+              <div style="font-weight: 700; font-size: 1.05rem;" id="hfss-title">Classified as High Fat, Sugar, Salt (HFSS)</div>
+              <div style="font-size: 0.88rem; margin-top: 0.25rem;" id="hfss-reasons">
+                Exceeds draft FSSAI thresholds for one or more key health-risk nutrients.
+              </div>
+            </div>
           </div>
-        </div>
 
-        <!-- Allergens & Additives Cards -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
-          
-          <!-- Allergens Card -->
-          <div class="card" style="margin-bottom: 0;">
+          <!-- Nutrients Traffic Light Grid -->
+          <div class="card">
+            <div class="card-title">Key Nutrient Breakdown vs. FSSAI Limits</div>
+            <div class="nutrients-grid" id="nutrients-cards-container">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <!-- Allergens & Additives Cards -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+            
+            <!-- Allergens Card -->
+            <div class="card" style="margin-bottom: 0;">
+              <div class="card-title">
+                <span>🌾 Detected Allergens</span>
+                <span id="allergens-count" style="font-size: 0.8rem; font-weight: normal; color: var(--neutral-600);">0 detected</span>
+              </div>
+              <div id="allergens-container">
+                <p style="font-size: 0.85rem; color: var(--neutral-600);">No common allergens identified.</p>
+              </div>
+            </div>
+
+            <!-- Additives Watchlist Card -->
+            <div class="card" style="margin-bottom: 0;">
+              <div class="card-title">
+                <span>🧪 Additives Watchlist (INS)</span>
+                <span id="additives-count" style="font-size: 0.8rem; font-weight: normal; color: var(--neutral-600);">0 flagged</span>
+              </div>
+              <div id="additives-container">
+                <p style="font-size: 0.85rem; color: var(--neutral-600);">No high-concern additives flagged.</p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Explainable AI (XAI) Reasoning Trace -->
+          <div class="card">
             <div class="card-title">
-              <span>🌾 Detected Allergens</span>
-              <span id="allergens-count" style="font-size: 0.8rem; font-weight: normal; color: var(--neutral-600);">0 detected</span>
+              <span>🔍 Explainable AI (XAI) Audit Trail</span>
+              <span style="font-size: 0.8rem; font-weight: 600; color: var(--primary);">Transparent Symbolic Inference</span>
             </div>
-            <div id="allergens-container">
-              <p style="font-size: 0.85rem; color: var(--neutral-600);">No common allergens identified.</p>
-            </div>
-          </div>
-
-          <!-- Additives Watchlist Card -->
-          <div class="card" style="margin-bottom: 0;">
-            <div class="card-title">
-              <span>🧪 Additives Watchlist (INS)</span>
-              <span id="additives-count" style="font-size: 0.8rem; font-weight: normal; color: var(--neutral-600);">0 flagged</span>
-            </div>
-            <div id="additives-container">
-              <p style="font-size: 0.85rem; color: var(--neutral-600);">No high-concern additives flagged.</p>
+            <p style="font-size: 0.85rem; color: var(--neutral-600); margin-bottom: 0.75rem;">
+              Unlike black-box statistical models, every single deduction and classification in Label Lens is mathematically auditable and anchored directly to statutory draft regulations:
+            </p>
+            <div class="xai-table-container">
+              <table class="xai-table">
+                <thead>
+                  <tr>
+                    <th>Step</th>
+                    <th>Decision Rule</th>
+                    <th>Input Value</th>
+                    <th>Calculated Metric</th>
+                    <th>FSSAI Criterion</th>
+                    <th>Status</th>
+                    <th>Deduction</th>
+                    <th>Plain-English Finding</th>
+                  </tr>
+                </thead>
+                <tbody id="xai-trace-body">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
             </div>
           </div>
 
         </div>
 
-        <!-- Explainable AI (XAI) Reasoning Trace -->
-        <div class="card">
-          <div class="card-title">
-            <span>🔍 Explainable AI (XAI) Audit Trail</span>
-            <span style="font-size: 0.8rem; font-weight: 600; color: var(--primary);">Transparent Symbolic Inference</span>
+        <!-- ============================================== -->
+        <!-- VIEW 2: MACHINE LEARNING (ML) EVALUATION VIEW  -->
+        <!-- ============================================== -->
+        <div id="ml-engine-view" style="display: none;">
+
+          <!-- ML Model Identity Card -->
+          <div class="card" style="background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%); border: 1.5px solid #c4b5fd; margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                  <span style="font-size: 1.4rem;">🤖</span>
+                  <h3 style="font-size: 1.15rem; font-weight: 800; color: #5b21b6; margin: 0;">Supervised ML Classifier Evaluation</h3>
+                  <span class="badge" style="background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe; font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 9999px;">Chapter 7 Benchmark</span>
+                </div>
+                <p style="font-size: 0.82rem; color: #4b5563; margin: 0.35rem 0 0 0;">
+                  Evaluated using Supervised Logistic Regression with Decision Tree cross-check trained on the 50-Product Indian Food Ground Truth Dataset.
+                </p>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 0.72rem; color: #6b7280; font-weight: 700; text-transform: uppercase;">Benchmark Performance</span>
+                <div style="font-size: 0.92rem; font-weight: 800; color: #5b21b6;">98.0% Accuracy • 0.988 F1</div>
+              </div>
+            </div>
           </div>
-          <p style="font-size: 0.85rem; color: var(--neutral-600); margin-bottom: 0.75rem;">
-            Unlike black-box LLMs, every single deduction and classification in Label Lens is mathematically auditable and anchored directly to statutory draft regulations:
-          </p>
-          <div class="xai-table-container">
-            <table class="xai-table">
-              <thead>
-                <tr>
-                  <th>Step</th>
-                  <th>Decision Rule</th>
-                  <th>Input Value</th>
-                  <th>Calculated Metric</th>
-                  <th>FSSAI Criterion</th>
-                  <th>Status</th>
-                  <th>Deduction</th>
-                  <th>Plain-English Finding</th>
-                </tr>
-              </thead>
-              <tbody id="xai-trace-body">
-                <!-- Populated via JS -->
-              </tbody>
-            </table>
+
+          <!-- ML Verdict Header -->
+          <div class="verdict-header">
+            <!-- ML Probability Card -->
+            <div class="verdict-badge-box" id="ml-prob-box" style="background: #ffffff; border: 1px solid var(--neutral-300);">
+              <div style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; color: var(--neutral-600); margin-bottom: 0.25rem;">
+                HFSS Probability Score
+              </div>
+              <div class="score-display" id="ml-prob-val" style="color: #dc2626; font-size: 2.2rem;">0.0%</div>
+              <div style="font-size: 0.92rem; font-weight: 700;" id="ml-confidence-label">Calculating...</div>
+              <!-- Probability Meter Progress Bar -->
+              <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 9999px; overflow: hidden; margin-top: 0.5rem;">
+                <div id="ml-prob-bar" style="width: 0%; height: 100%; background: #dc2626; border-radius: 9999px; transition: width 0.4s ease;"></div>
+              </div>
+              <div style="font-size: 0.72rem; color: var(--neutral-500); margin-top: 0.35rem;">
+                Sigmoid probability: P(HFSS) = 1 / (1 + e<sup>-z</sup>)
+              </div>
+            </div>
+
+            <!-- ML Predicted INR Rating -->
+            <div class="inr-box">
+              <div style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; color: var(--neutral-600); margin-bottom: 0.25rem;">
+                Predicted Indian Nutrition Rating
+              </div>
+              <div class="stars-display" id="ml-stars-val">⭐⭐⭐</div>
+              <div style="font-size: 0.92rem; font-weight: 700; color: var(--neutral-900);" id="ml-stars-text">3.0 / 5.0 Stars (ML)</div>
+              <div style="font-size: 0.75rem; color: var(--neutral-600); margin-top: 0.35rem;" id="ml-decision-tree-path">
+                Cross-checked via Decision Tree splits
+              </div>
+            </div>
           </div>
+
+          <!-- ML HFSS Warning / Status Banner -->
+          <div id="ml-verdict-banner" class="hfss-alert-banner high-risk" style="margin-bottom: 1.25rem;">
+            <div style="font-size: 1.5rem;">🤖</div>
+            <div>
+              <div style="font-weight: 700; font-size: 1.05rem;" id="ml-verdict-title">Classified as High Fat, Sugar, Salt (HFSS)</div>
+              <div style="font-size: 0.85rem; margin-top: 0.25rem;" id="ml-verdict-subtitle">
+                Statistical log-odds crossed the classification threshold.
+              </div>
+            </div>
+          </div>
+
+          <!-- ML Feature Importance & Log-Odds Contributions Card -->
+          <div class="card" style="margin-bottom: 1.25rem;">
+            <div class="card-title">
+              <span>📊 ML Feature Weights & Log-Odds Contributions</span>
+              <span style="font-size: 0.8rem; font-weight: 600; color: #5b21b6;">Feature Sensitivity Analysis</span>
+            </div>
+            <p style="font-size: 0.82rem; color: var(--neutral-600); margin-bottom: 0.75rem;">
+              How each nutrient input influenced the model's log-odds decision (Positive = pushes toward HFSS risk, Negative = protective):
+            </p>
+            <div class="xai-table-container">
+              <table class="xai-table">
+                <thead>
+                  <tr>
+                    <th>Nutrient Feature</th>
+                    <th>Extracted Value</th>
+                    <th>Model Weight (w)</th>
+                    <th>Log-Odds Contribution</th>
+                    <th>Impact Direction</th>
+                  </tr>
+                </thead>
+                <tbody id="ml-contributions-table-body">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Academic Contrast: Rule Engine vs ML Model -->
+          <div class="card" style="background: #fdfdfd; border: 1.5px dashed #6366f1;">
+            <div class="card-title">
+              <span>⚖️ Academic Defense Contrast: Rule Engine vs. ML Model</span>
+              <span style="font-size: 0.8rem; font-weight: 600; color: var(--primary);">Viva Voce Talking Points</span>
+            </div>
+            <p style="font-size: 0.82rem; color: var(--neutral-600); margin-bottom: 0.85rem;">
+              Directly addresses Evaluator Feedback #1 & #4 demonstrating the necessity of the Expert System over pure Machine Learning in safety-critical consumer health:
+            </p>
+            <div class="xai-table-container">
+              <table class="xai-table">
+                <thead>
+                  <tr>
+                    <th>Evaluation Dimension</th>
+                    <th>⚖️ FSSAI Rule Engine (Expert System)</th>
+                    <th>🤖 Supervised ML Classifier</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Grounding</strong></td>
+                    <td>Statutory Indian Gazette 2022 Draft Schedule V</td>
+                    <td>Statistical correlation over 50-product dataset</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Auditability & Traceability</strong></td>
+                    <td><span class="badge badge-success">100% Deterministic & Auditable</span></td>
+                    <td><span class="badge" style="background: #fef3c7; color: #92400e;">Probabilistic Sigmoid Calculation</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Hallucination / Error Risk</strong></td>
+                    <td><strong>Zero Error:</strong> Direct compliance check</td>
+                    <td><strong>Confounder Risk:</strong> Blind to category context (e.g. natural lactose in dairy)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Legal Accountability</strong></td>
+                    <td>Provides exact clause citation for regulators</td>
+                    <td>Black-box approximation without statutory defense</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Architectural Conclusion</strong></td>
+                    <td colspan="2" style="background: #f0fdf4; font-weight: 600; color: #166534; text-align: center;">
+                      🏆 Neurosymbolic AI: Computer Vision (AI Perception) + Knowledge-Based Rule Engine (Compliance Reasoning)
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
 
       </div>

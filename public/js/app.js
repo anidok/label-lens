@@ -4,7 +4,8 @@ import { renderComparisonWorkspace } from './compare-view.js';
 const state = {
   presets: [],
   currentProduct: null,
-  comparisonPool: []
+  comparisonPool: [],
+  evaluationEngineMode: 'rule' // 'rule' (XAI Rule Engine) or 'ml' (ML Classifier)
 };
 
 // Initialize App
@@ -141,7 +142,8 @@ function setupEventListeners() {
           brand: 'Custom Input',
           category: 'Packaged Food',
           nutrients: data.parsed_nutrients,
-          evaluation: data.evaluation
+          evaluation: data.evaluation,
+          ml_evaluation: data.ml_evaluation
         };
         state.comparisonPool.unshift(customProduct);
         populateCompareDropdowns();
@@ -382,7 +384,8 @@ function setupEventListeners() {
         serving_size: cum.cumulative_nutrients?.serving_size || `Combined Meal (${data.products.length} items)`,
         engine_used: data.engine_used,
         nutrients: cum.cumulative_nutrients,
-        evaluation: cum.evaluation
+        evaluation: cum.evaluation,
+        ml_evaluation: cum.ml_evaluation
       };
 
       // Format individual products for state & comparison pool
@@ -394,7 +397,8 @@ function setupEventListeners() {
         serving_size: p.serving_size || p.nutrients?.serving_size || 'per 100g',
         engine_used: data.engine_used,
         nutrients: p.nutrients || p,
-        evaluation: p.evaluation
+        evaluation: p.evaluation,
+        ml_evaluation: p.ml_evaluation
       }));
 
       // Add individual products and combo meal to comparison pool
@@ -475,7 +479,8 @@ function setupEventListeners() {
         category: 'Food Product',
         engine_used: data.engine_used,
         nutrients: data.parsed_nutrients,
-        evaluation: data.evaluation
+        evaluation: data.evaluation,
+        ml_evaluation: data.ml_evaluation
       };
       state.comparisonPool.unshift(scannedProduct);
       populateCompareDropdowns();
@@ -554,6 +559,7 @@ function setupEventListeners() {
       if (data.success) {
         state.currentProduct.nutrients = data.parsed_nutrients;
         state.currentProduct.evaluation = data.evaluation;
+        state.currentProduct.ml_evaluation = data.ml_evaluation;
         populateCompareDropdowns();
         displayAnalysisResult(state.currentProduct);
         alert('✓ Analysis successfully recalculated with updated values!');
@@ -564,6 +570,21 @@ function setupEventListeners() {
       alert('Recalculation failed: ' + err.message);
     }
   });
+
+  // Evaluation Engine Switcher (Rule Engine vs ML Classifier)
+  const btnEngineRule = document.getElementById('btn-engine-rule');
+  const btnEngineMl = document.getElementById('btn-engine-ml');
+
+  if (btnEngineRule && btnEngineMl) {
+    btnEngineRule.addEventListener('click', () => {
+      state.evaluationEngineMode = 'rule';
+      updateEngineModeDisplay();
+    });
+    btnEngineMl.addEventListener('click', () => {
+      state.evaluationEngineMode = 'ml';
+      updateEngineModeDisplay();
+    });
+  }
 }
 
 // Display Analysis Results
@@ -789,4 +810,148 @@ function displayAnalysisResult(product) {
     `;
     traceBody.appendChild(tr);
   });
+
+  // 9. Update Active Engine View (Rule Engine vs ML Classifier)
+  updateEngineModeDisplay();
+}
+
+// Update Active Engine Mode View
+function updateEngineModeDisplay() {
+  const ruleView = document.getElementById('rule-engine-view');
+  const mlView = document.getElementById('ml-engine-view');
+  const btnRule = document.getElementById('btn-engine-rule');
+  const btnMl = document.getElementById('btn-engine-ml');
+  const badge = document.getElementById('active-engine-badge');
+  const desc = document.getElementById('active-engine-desc');
+
+  if (!ruleView || !mlView) return;
+
+  const isRule = state.evaluationEngineMode !== 'ml';
+
+  if (isRule) {
+    ruleView.style.display = 'block';
+    mlView.style.display = 'none';
+
+    if (btnRule) {
+      btnRule.style.background = 'var(--primary)';
+      btnRule.style.color = '#ffffff';
+    }
+    if (btnMl) {
+      btnMl.style.background = 'transparent';
+      btnMl.style.color = 'var(--neutral-700)';
+    }
+    if (badge) {
+      badge.textContent = '⚖️ FSSAI Rule Engine (XAI)';
+      badge.style.background = '#e0e7ff';
+      badge.style.color = '#4338ca';
+    }
+    if (desc) {
+      desc.textContent = '100% Deterministic Statutory Rules anchored directly to FSSAI 2022 Draft Schedule V.';
+    }
+  } else {
+    ruleView.style.display = 'none';
+    mlView.style.display = 'block';
+
+    if (btnRule) {
+      btnRule.style.background = 'transparent';
+      btnRule.style.color = 'var(--neutral-700)';
+    }
+    if (btnMl) {
+      btnMl.style.background = '#6d28d9';
+      btnMl.style.color = '#ffffff';
+    }
+    if (badge) {
+      badge.textContent = '🤖 Supervised ML Classifier';
+      badge.style.background = '#ede9fe';
+      badge.style.color = '#6d28d9';
+    }
+    if (desc) {
+      desc.textContent = 'Statistical Log-Odds & Sigmoid Probability trained on the 50-Product Ground Truth Dataset.';
+    }
+
+    renderMlEvaluation(state.currentProduct);
+  }
+}
+
+// Render ML Evaluation Details
+function renderMlEvaluation(product) {
+  if (!product) return;
+
+  const ml = product.ml_evaluation;
+  if (!ml) return;
+
+  const probVal = document.getElementById('ml-prob-val');
+  const probBar = document.getElementById('ml-prob-bar');
+  const confLabel = document.getElementById('ml-confidence-label');
+  const starsVal = document.getElementById('ml-stars-val');
+  const starsText = document.getElementById('ml-stars-text');
+  const dtPath = document.getElementById('ml-decision-tree-path');
+  const verdictBanner = document.getElementById('ml-verdict-banner');
+  const verdictTitle = document.getElementById('ml-verdict-title');
+  const verdictSubtitle = document.getElementById('ml-verdict-subtitle');
+  const contribTable = document.getElementById('ml-contributions-table-body');
+
+  const probPct = Math.round(ml.probability_hfss * 1000) / 10;
+  if (probVal) {
+    probVal.textContent = `${probPct.toFixed(1)}%`;
+    probVal.style.color = ml.is_hfss ? '#dc2626' : '#16a34a';
+  }
+  if (probBar) {
+    probBar.style.width = `${Math.min(100, Math.max(3, probPct))}%`;
+    probBar.style.background = ml.is_hfss ? '#dc2626' : '#16a34a';
+  }
+  if (confLabel) {
+    confLabel.textContent = `${ml.confidence_pct}% Confidence • ${ml.risk_level}`;
+    confLabel.style.color = ml.is_hfss ? '#dc2626' : '#16a34a';
+  }
+
+  if (starsVal) {
+    const starCount = Math.floor(ml.predicted_inr_stars);
+    const half = ml.predicted_inr_stars % 1 !== 0 ? '½' : '';
+    starsVal.textContent = '⭐'.repeat(starCount) + half;
+  }
+  if (starsText) {
+    starsText.textContent = `${ml.predicted_inr_stars.toFixed(1)} / 5.0 Stars (ML)`;
+  }
+  if (dtPath && ml.decision_tree) {
+    dtPath.textContent = `Tree Decision: ${ml.decision_tree.rule_path}`;
+  }
+
+  if (verdictBanner) {
+    verdictBanner.className = ml.is_hfss ? 'hfss-alert-banner high-risk' : 'hfss-alert-banner low-risk';
+    if (!ml.is_hfss) {
+      verdictBanner.style.background = '#f0fdf4';
+      verdictBanner.style.borderLeft = '5px solid #16a34a';
+      verdictBanner.style.color = '#14532d';
+    } else {
+      verdictBanner.style.background = '';
+      verdictBanner.style.borderLeft = '';
+      verdictBanner.style.color = '';
+    }
+  }
+  if (verdictTitle) {
+    verdictTitle.textContent = `ML Verdict: ${ml.predicted_label}`;
+  }
+  if (verdictSubtitle) {
+    verdictSubtitle.innerHTML = `Model log-odds score <strong>z = ${ml.raw_log_odds >= 0 ? '+' : ''}${ml.raw_log_odds}</strong>. Probability of being high in fat, sugar, or salt: <strong>${(ml.probability_hfss * 100).toFixed(1)}%</strong>.`;
+  }
+
+  if (contribTable && ml.all_contributions) {
+    contribTable.innerHTML = ml.all_contributions.map(c => `
+      <tr>
+        <td style="font-weight: 600;">${c.feature}</td>
+        <td>${c.value}</td>
+        <td style="font-family: monospace;">${c.weight >= 0 ? '+' : ''}${c.weight.toFixed(4)}</td>
+        <td style="font-family: monospace; font-weight: 700; color: ${c.log_odds_impact >= 0 ? '#dc2626' : '#16a34a'};">
+          ${c.log_odds_impact >= 0 ? '+' : ''}${c.log_odds_impact.toFixed(2)}
+        </td>
+        <td>
+          ${c.direction === 'risk' 
+            ? `<span class="badge" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-size: 0.72rem;">⚠️ Risk Push</span>`
+            : `<span class="badge" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; font-size: 0.72rem;">✓ Protective</span>`
+          }
+        </td>
+      </tr>
+    `).join('');
+  }
 }
